@@ -63,7 +63,7 @@ The repository follows the same layout as other Quick Start projects.
 
 ```
 .
-├── 01-terraform
+├── 01-core
 │   ├── backend.tf
 │   ├── providers.tf
 │   ├── variables.tf
@@ -76,12 +76,17 @@ The repository follows the same layout as other Quick Start projects.
 │   ├── s3_backend.tf
 │   └── outputs.tf
 │
-├── 02-scripts
+├── 02-scoring
+│   ├── deploy.sh
+│   ├── destroy.sh
+│   └── package_lambda.sh
+|
+├── 03-lambdas
 │   ├── deploy.sh
 │   ├── destroy.sh
 │   └── package_lambda.sh
 │
-├── 03-webapp
+├── 04-webapp
 │   ├── index.html
 │   ├── app.js
 │   └── styles.css
