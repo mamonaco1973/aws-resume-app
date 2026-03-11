@@ -104,10 +104,10 @@ set -euo pipefail
 #   - Lambda functions
 #   - API Gateway routes and integrations
 # ------------------------------------------------------------------------------
-echo "NOTE: Destroying Lambdas and API Gateway..."
+echo "NOTE: Destroying Application Core Services..."
 
-cd 01-lambdas || {
-  echo "ERROR: Directory 01-lambdas not found."
+cd 01-core || {
+  echo "ERROR: Directory 01-core not found."
   exit 1
 }
 

@@ -64,10 +64,10 @@ fi
 #   - API Gateway (HTTP API)
 #   - Cognito (domain + app client outputs are read later)
 # ------------------------------------------------------------------------------
-echo "NOTE: Building Lambdas and API Gateway..."
+echo "NOTE: Building Application Core Services..."
 
-cd 01-lambdas || {
-  echo "ERROR: 01-lambdas directory missing."
+cd 01-core || {
+  echo "ERROR: 01-core directory missing."
   exit 1
 }
 
