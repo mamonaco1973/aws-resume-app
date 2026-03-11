@@ -19,3 +19,13 @@ variable "backend_bucket_base_name" {
   type        = string
   default     = "resume-data"
 }
+
+# ================================================================================
+# AWS region
+# ================================================================================
+
+variable "region" {
+  description = "AWS region for deployment"
+  type        = string
+  default     = "us-east-1"
+}
