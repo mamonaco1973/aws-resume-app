@@ -1,12 +1,4 @@
 # =================================================================================
-# Random identifier used to ensure globally unique S3 bucket names
-# =================================================================================
-
-resource "random_id" "bucket_suffix" {
-  byte_length = 4
-}
-
-# =================================================================================
 # Backend S3 bucket
 # Stores application data (resumes, job payloads, analysis results)
 # Bucket name = <base>-<random>

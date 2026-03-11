@@ -19,3 +19,11 @@ provider "aws" {
 
 data "aws_caller_identity" "current" {} # Returns AWS account ID and ARN
 data "aws_region" "current" {}          # Returns currently configured region
+
+# ================================================================================
+# Random suffix used to ensure globally unique S3 bucket names
+# ================================================================================
+
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}

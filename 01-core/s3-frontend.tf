@@ -1,12 +1,4 @@
 # =================================================================================
-# Random identifier used to ensure globally unique S3 bucket names
-# =================================================================================
-
-resource "random_id" "bucket_suffix" {
-  byte_length = 4
-}
-
-# =================================================================================
 # Frontend S3 bucket
 # Hosts the static web application
 # Bucket name = <base>-<random>
