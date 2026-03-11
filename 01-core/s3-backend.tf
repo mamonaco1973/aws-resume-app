@@ -6,6 +6,7 @@
 
 resource "aws_s3_bucket" "backend" {
   bucket = "${var.backend_bucket_base_name}-${random_id.bucket_suffix.hex}"
+  force_destroy = true
 }
 
 # =================================================================================
