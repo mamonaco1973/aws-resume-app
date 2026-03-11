@@ -69,3 +69,12 @@ resource "aws_lambda_permission" "api_gw" {
 
   source_arn = "${aws_apigatewayv2_api.api.execution_arn}/*/*"
 }
+
+# ================================================================================
+# API endpoint output
+# ================================================================================
+
+output "api_endpoint" {
+  description = "Base URL for the API Gateway endpoint"
+  value       = aws_apigatewayv2_api.api.api_endpoint
+}
