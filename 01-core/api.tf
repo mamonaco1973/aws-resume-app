@@ -47,6 +47,24 @@ resource "aws_apigatewayv2_route" "create_resume" {
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "get_resume" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /resumes/{resume_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "update_resume" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "PUT /resumes/{resume_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "delete_resume" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "DELETE /resumes/{resume_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 # ================================================================================
 # Stage
 # ================================================================================
