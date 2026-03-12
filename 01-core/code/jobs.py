@@ -112,6 +112,17 @@ def get_job_item(user_id, job_id):
     return result.get("Item")
 
 
+def delete_s3_object(key):
+
+    if not key:
+        return
+
+    s3.delete_object(
+        Bucket=BACKEND_BUCKET,
+        Key=key
+    )
+
+
 # ------------------------------------------------------------------------------
 # POST /jobs
 #
@@ -362,6 +373,8 @@ def update_job_notes(event):
             ContentType="text/plain"
         )
         notes_s3_key = notes_key
+    elif item.get("notes_s3_key"):
+        delete_s3_object(item["notes_s3_key"])
 
     table.update_item(
         Key={
@@ -378,3 +391,41 @@ def update_job_notes(event):
     )
 
     return response(200, {"updated": True})
+
+
+# ------------------------------------------------------------------------------
+# DELETE /jobs/{job_id}
+#
+# Deletes job metadata and all job-owned S3 objects.
+# ------------------------------------------------------------------------------
+
+def delete_job(event):
+
+    user_id = get_user_id(event)
+    job_id = get_job_id(event)
+
+    if not job_id:
+        return response(400, {"error": "job_id is required"})
+
+    item = get_job_item(user_id, job_id)
+
+    if not item:
+        return response(404, {"error": "job not found"})
+
+    pk, sk, resume_snapshot_key, job_description_key, notes_key = (
+        build_job_paths(user_id, job_id)
+    )
+
+    delete_s3_object(item.get("resume_snapshot_s3_key") or resume_snapshot_key)
+    delete_s3_object(item.get("job_description_s3_key") or job_description_key)
+    delete_s3_object(item.get("notes_s3_key") or notes_key)
+    delete_s3_object(item.get("analysis_s3_key"))
+
+    table.delete_item(
+        Key={
+            "pk": pk,
+            "sk": sk
+        }
+    )
+
+    return response(200, {"deleted": True})

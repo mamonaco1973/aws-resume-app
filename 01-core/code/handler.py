@@ -11,7 +11,7 @@
 
 import json
 import logging
-from jobs import create_job, get_job, list_jobs, update_job_notes
+from jobs import create_job, delete_job, get_job, list_jobs, update_job_notes
 from resumes import (
     create_resume,
     delete_resume,
@@ -68,6 +68,11 @@ def lambda_handler(event, context):
 
         if method == "PATCH" and path.endswith("/notes"):
             return update_job_notes(event)
+
+        if method == "DELETE" and path.startswith("/jobs/") and not path.endswith(
+            "/notes"
+        ):
+            return delete_job(event)
 
         # ------------------------------------------------------------------------
         # Resume collection endpoints

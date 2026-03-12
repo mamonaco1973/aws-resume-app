@@ -77,6 +77,12 @@ resource "aws_apigatewayv2_route" "delete_resume" {
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "delete_job" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "DELETE /jobs/{job_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 # ================================================================================
 # Stage
 # ================================================================================
