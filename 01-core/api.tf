@@ -35,6 +35,18 @@ resource "aws_apigatewayv2_route" "create_job" {
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+resource "aws_apigatewayv2_route" "get_job" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET /jobs/{job_id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
+resource "aws_apigatewayv2_route" "update_job_notes" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "PATCH /jobs/{job_id}/notes"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 resource "aws_apigatewayv2_route" "get_resumes" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET /resumes"
