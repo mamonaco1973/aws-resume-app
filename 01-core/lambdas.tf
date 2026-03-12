@@ -19,7 +19,7 @@ resource "aws_lambda_function" "api" {
   environment {
     variables = {
       TABLE_NAME     = aws_dynamodb_table.app_table.name
-      BACKEND_BUCKET = aws_s3_bucket.backend.bucket
+      BACKEND_BUCKET_NAME = aws_s3_bucket.backend.bucket
     }
   }
 }
