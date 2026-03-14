@@ -92,3 +92,17 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
+
+function formatDate(value) {
+  if (!value) {
+    return "—";
+  }
+
+  try {
+    const date = new Date(value);
+    return date.toLocaleString();
+  } catch {
+    return value;
+  }
+}
+
