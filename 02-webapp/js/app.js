@@ -224,9 +224,11 @@ function validateNewJobForm() {
   if (sourceType === "raw_text") {
     if (!jobDescription) {
       errors.jobDescription = "Job description is required.";
+    } else if (jobDescription.length < 100) {
+      errors.jobDescription = "Job description is too short.";
     }
   }
-
+  
  if (sourceType === "linkedin_job_id") {
   const jobIds = parseLinkedInJobIds(linkedinRaw);
 
