@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Job Scoring Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+
+<body>
+
+  <!-- ================================================================ -->
+  <!-- Header -->
+  <!-- ================================================================ -->
+
+  <header class="app-header">
+    <h1>Job Scoring Dashboard</h1>
+
+    <div class="actions">
+      <button id="btn-new-job">Score New Job</button>
+      <button id="btn-manage-resumes">Manage Resumes</button>
+    </div>
+  </header>
+
+  <!-- ================================================================ -->
+  <!-- Jobs Table -->
+  <!-- ================================================================ -->
+
+  <main>
+
+    <table id="jobs-table">
+      <thead>
+        <tr>
+          <th data-sort="job_title">Job Title</th>
+          <th data-sort="company">Company</th>
+          <th data-sort="status">Status</th>
+          <th data-sort="score">Score</th>
+          <th data-sort="created_at">Date</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+
+      <tbody id="jobs-body">
+        <!-- rows rendered by jobs.js -->
+      </tbody>
+
+    </table>
+
+    <div id="empty-state" class="hidden">
+      <p>No jobs submitted yet.</p>
+      <p>Click <b>Score New Job</b> to begin.</p>
+    </div>
+
+  </main>
+
+  <!-- ================================================================ -->
+  <!-- New Job Modal -->
+  <!-- ================================================================ -->
+
+  <div id="new-job-modal" class="modal hidden">
+
+    <div class="modal-content">
+
+      <h2>Score New Job</h2>
+
+      <form id="new-job-form">
+
+        <label>Resume</label>
+        <select id="resume-select"></select>
+
+        <label>Source Type</label>
+        <select id="source-type">
+          <option value="url">Job URL</option>
+          <option value="raw_text">Paste Job Description</option>
+        </select>
+
+        <div id="url-field">
+          <label>Job URL</label>
+          <input type="text" id="job-url">
+        </div>
+
+        <div id="text-field" class="hidden">
+          <label>Job Description</label>
+          <textarea id="job-description"></textarea>
+        </div>
+
+        <label>Notes (optional)</label>
+        <textarea id="job-notes"></textarea>
+
+        <div class="modal-actions">
+          <button type="submit">Submit</button>
+          <button type="button" id="cancel-new-job">Cancel</button>
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- Resume Manager Modal -->
+  <!-- ================================================================ -->
+
+  <div id="resume-modal" class="modal hidden">
+
+    <div class="modal-content">
+
+      <h2>Manage Resumes</h2>
+
+      <div id="resume-list"></div>
+
+      <form id="resume-form">
+
+        <label>Resume Name</label>
+        <input type="text" id="resume-name">
+
+        <label>Resume Text</label>
+        <textarea id="resume-text"></textarea>
+
+        <div class="modal-actions">
+          <button type="submit">Save Resume</button>
+          <button type="button" id="close-resume-modal">Close</button>
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+  <!-- ================================================================ -->
+  <!-- Load Application -->
+  <!-- ================================================================ -->
+
+  <script type="module" src="/js/app.js"></script>
+
+</body>
+</html>
