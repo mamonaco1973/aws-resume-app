@@ -25,8 +25,6 @@ function bindUiHandlers() {
   const cancelNewJob = document.getElementById("cancel-new-job");
 
   const sourceType = document.getElementById("source-type");
-  const urlField = document.getElementById("url-field");
-  const textField = document.getElementById("text-field");
   const resumeSelect = document.getElementById("resume-select");
 
   // ---------------------------------------------------------------------------
@@ -46,6 +44,7 @@ function bindUiHandlers() {
       resumeModal?.classList.add("hidden");
       resetNewJobForm();
       await populateResumeSelect();
+      updateSourceFields();
       newJobModal?.classList.remove("hidden");
     } catch (error) {
       console.error("Failed to load resumes:", error);
@@ -75,14 +74,37 @@ function bindUiHandlers() {
   // ---------------------------------------------------------------------------
 
   sourceType?.addEventListener("change", () => {
-    if (sourceType.value === "url") {
-      urlField?.classList.remove("hidden");
-      textField?.classList.add("hidden");
-    } else {
-      urlField?.classList.add("hidden");
-      textField?.classList.remove("hidden");
-    }
+    updateSourceFields();
   });
+}
+
+function updateSourceFields() {
+  const sourceType = document.getElementById("source-type");
+  const urlField = document.getElementById("url-field");
+  const textField = document.getElementById("text-field");
+  const linkedinField = document.getElementById("linkedin-field");
+
+  if (!sourceType) {
+    return;
+  }
+
+  urlField?.classList.add("hidden");
+  textField?.classList.add("hidden");
+  linkedinField?.classList.add("hidden");
+
+  if (sourceType.value === "url") {
+    urlField?.classList.remove("hidden");
+    return;
+  }
+
+  if (sourceType.value === "raw_text") {
+    textField?.classList.remove("hidden");
+    return;
+  }
+
+  if (sourceType.value === "linkedin_job_id") {
+    linkedinField?.classList.remove("hidden");
+  }
 }
 
 async function populateResumeSelect() {
@@ -129,6 +151,9 @@ function resetNewJobForm() {
   document.getElementById("new-job-form")?.reset();
 
   document.getElementById("source-type").value = "url";
-  document.getElementById("url-field")?.classList.remove("hidden");
-  document.getElementById("text-field")?.classList.add("hidden");
+  document.getElementById("job-url").value = "";
+  document.getElementById("job-description").value = "";
+  document.getElementById("linkedin-job-ids").value = "";
+
+  updateSourceFields();
 }
