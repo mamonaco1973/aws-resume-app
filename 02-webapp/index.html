@@ -54,57 +54,60 @@
 
   </main>
 
-  <!-- ================================================================ -->
-  <!-- New Job Modal -->
-  <!-- ================================================================ -->
+<!-- ================================================================ -->
+<!-- New Job Modal -->
+<!-- ================================================================ -->
 
-  <div id="new-job-modal" class="modal hidden">
+<div id="new-job-modal" class="modal hidden">
 
-    <div class="modal-content">
+  <div class="modal-content">
 
-      <h2>Score New Job</h2>
+    <h2>Score New Job</h2>
 
-      <form id="new-job-form">
+    <form id="new-job-form">
 
-        <label>Resume</label>
-        <select id="resume-select"></select>
+      <label>Resume</label>
+      <select id="resume-select"></select>
+      <div id="resume-error" class="field-error hidden"></div>
 
-        <label>Source Type</label>
-        <select id="source-type">
-          <option value="url">Job URL</option>
-          <option value="raw_text">Paste Job Description</option>
-          <option value="linkedin_job_id">LinkedIn Job IDs</option>
-        </select>
+      <label>Source Type</label>
+      <select id="source-type">
+        <option value="url">Job URL</option>
+        <option value="raw_text">Paste Job Description</option>
+        <option value="linkedin_job_id">LinkedIn Job IDs</option>
+      </select>
 
-        <div id="url-field">
-          <label>Job URL</label>
-          <input type="text" id="job-url">
-        </div>
+      <div id="url-field">
+        <label>Job URL</label>
+        <input type="text" id="job-url">
+        <div id="job-url-error" class="field-error hidden"></div>
+      </div>
 
-        <div id="text-field" class="hidden">
-          <label>Job Description</label>
-          <textarea id="job-description"></textarea>
-        </div>
+      <div id="text-field" class="hidden">
+        <label>Job Description</label>
+        <textarea id="job-description"></textarea>
+        <div id="job-description-error" class="field-error hidden"></div>
+      </div>
 
-        <!-- <label>Notes (optional)</label>
-        <textarea id="job-notes"></textarea> -->
+      <div id="linkedin-field" class="hidden">
+        <label>LinkedIn Job ID(s)</label>
+        <textarea
+          id="linkedin-job-ids"
+          placeholder="Enter one or more LinkedIn job IDs&#10;Example:&#10;1234567890&#10;9876543210"
+        ></textarea>
+        <div id="linkedin-job-ids-error" class="field-error hidden"></div>
+      </div>
 
-        <div id="linkedin-field" class="hidden">
-          <label>LinkedIn Job ID(s)</label>
-          <textarea id="linkedin-job-ids" placeholder="Enter one or more LinkedIn job IDs&#10;Example:&#10;1234567890&#10;9876543210">
-          </textarea>
-        </div>
+      <div class="modal-actions">
+        <button type="submit" id="submit-new-job">Submit</button>
+        <button type="button" id="cancel-new-job">Cancel</button>
+      </div>
 
-        <div class="modal-actions">
-          <button type="submit">Submit</button>
-          <button type="button" id="cancel-new-job">Cancel</button>
-        </div>
-
-      </form>
-
-    </div>
+    </form>
 
   </div>
+
+</div>
 
   <!-- ================================================================ -->
   <!-- Resume Manager Modal -->

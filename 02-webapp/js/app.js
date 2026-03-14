@@ -26,6 +26,7 @@ function bindUiHandlers() {
 
   const sourceType = document.getElementById("source-type");
   const resumeSelect = document.getElementById("resume-select");
+  const newJobForm = document.getElementById("new-job-form");
 
   // ---------------------------------------------------------------------------
   // Track last selected resume
@@ -76,6 +77,23 @@ function bindUiHandlers() {
   sourceType?.addEventListener("change", () => {
     updateSourceFields();
   });
+
+  newJobForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const validation = validateNewJobForm();
+
+  clearNewJobFormErrors();
+
+  if (!validation.isValid) {
+    renderNewJobFormErrors(validation.errors);
+    return;
+  }
+
+  console.log("Scoring request is valid. Ready to submit.");
+});
+
+
 }
 
 function updateSourceFields() {
@@ -157,3 +175,80 @@ function resetNewJobForm() {
 
   updateSourceFields();
 }
+
+function validateNewJobForm() {
+  const errors = {};
+
+  const resumeId = document.getElementById("resume-select")?.value.trim() || "";
+  const sourceType = document.getElementById("source-type")?.value || "url";
+  const jobUrl = document.getElementById("job-url")?.value.trim() || "";
+  const jobDescription =
+    document.getElementById("job-description")?.value.trim() || "";
+  const linkedinRaw =
+    document.getElementById("linkedin-job-ids")?.value.trim() || "";
+
+  if (!resumeId) {
+    errors.resume = "You must select a resume.";
+  }
+
+  if (sourceType === "url") {
+    if (!jobUrl) {
+      errors.jobUrl = "Job URL is required.";
+    }
+  }
+
+  if (sourceType === "raw_text") {
+    if (!jobDescription) {
+      errors.jobDescription = "Job description is required.";
+    }
+  }
+
+  if (sourceType === "linkedin_job_id") {
+    const jobIds = parseLinkedInJobIds(linkedinRaw);
+
+    if (jobIds.length === 0) {
+      errors.linkedinJobIds = "Enter at least one LinkedIn job ID.";
+    }
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors
+  };
+}
+
+function parseLinkedInJobIds(value) {
+  return value
+    .split(/[\n,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function renderNewJobFormErrors(errors) {
+  setFieldError("resume-error", errors.resume);
+  setFieldError("job-url-error", errors.jobUrl);
+  setFieldError("job-description-error", errors.jobDescription);
+  setFieldError("linkedin-job-ids-error", errors.linkedinJobIds);
+}
+
+function clearNewJobFormErrors() {
+  renderNewJobFormErrors({});
+}
+
+function setFieldError(elementId, message) {
+  const element = document.getElementById(elementId);
+
+  if (!element) {
+    return;
+  }
+
+  if (message) {
+    element.textContent = message;
+    element.classList.remove("hidden");
+  } else {
+    element.textContent = "";
+    element.classList.add("hidden");
+  }
+}
+
+
