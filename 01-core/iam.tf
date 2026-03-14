@@ -69,6 +69,15 @@ resource "aws_iam_policy" "lambda_s3" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "BackendBucketList"
+        Effect = "Allow"
+        Action = [
+          "s3:ListBucket"
+        ]
+        Resource = aws_s3_bucket.backend.arn
+      },
+      {
+        Sid    = "BackendBucketObjects"
         Effect = "Allow"
         Action = [
           "s3:PutObject",
