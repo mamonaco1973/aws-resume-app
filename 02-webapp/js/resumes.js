@@ -81,8 +81,6 @@ async function saveResume() {
     return;
   }
 
-  const originalButtonText = saveButton?.textContent || "Save";
-
   try {
     if (saveButton) {
       saveButton.disabled = true;
@@ -93,13 +91,13 @@ async function saveResume() {
 
     if (selectedResumeId) {
       await updateResume(selectedResumeId, {
-        resume_name: resumeName,
-        resume_text: resumeText
+        name: resumeName,
+        resume: resumeText
       });
     } else {
       await createResume({
-        resume_name: resumeName,
-        resume_text: resumeText
+        name: resumeName,
+        resume: resumeText
       });
     }
 
@@ -124,7 +122,6 @@ async function handleDeleteResume() {
   }
 
   const deleteButton = document.getElementById("delete-resume-btn");
-  const originalButtonText = deleteButton?.textContent || "Delete";
 
   const confirmed = window.confirm("Delete this resume?");
 
@@ -178,7 +175,7 @@ function renderResumeList() {
     item.className = `resume-list-item${isActive ? " active" : ""}`;
     item.innerHTML = `
       <div class="resume-list-name">
-        ${escapeHtml(resume.resume_name || "Untitled Resume")}
+        ${escapeHtml(resume.name || "Untitled Resume")}
       </div>
       <div class="resume-list-meta">
         ${formatDate(resume.updated_at || resume.created_at)}
@@ -199,8 +196,8 @@ async function selectResume(resumeId) {
 
     selectedResumeId = resume.resume_id;
 
-    document.getElementById("resume-name").value = resume.resume_name || "";
-    document.getElementById("resume-text").value = resume.resume_text || "";
+    document.getElementById("resume-name").value = resume.name || "";
+    document.getElementById("resume-text").value = resume.resume || "";
 
     document.getElementById("resume-form-title").textContent = "Edit Resume";
     document.getElementById("save-resume-btn").textContent = "Update Resume";
