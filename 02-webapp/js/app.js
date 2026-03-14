@@ -315,7 +315,7 @@ async function refreshApp() {
   try {
     if (refreshButton) {
       refreshButton.disabled = true;
-      refreshButton.textContent = "Refreshing...";
+      /*refreshButton.textContent = "Refreshing...";*/
     }
 
     await loadJobs();
@@ -325,7 +325,7 @@ async function refreshApp() {
   } finally {
     if (refreshButton) {
       refreshButton.disabled = false;
-      refreshButton.textContent = originalText;
+      /*refreshButton.textContent = originalText;*/
     }
   }
 }
