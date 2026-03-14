@@ -214,9 +214,11 @@ function validateNewJobForm() {
   }
 
   if (sourceType === "url") {
-    if (!jobUrl) {
-      errors.jobUrl = "Job URL is required.";
-    }
+  if (!jobUrl) {
+    errors.jobUrl = "Job URL is required.";
+  } else if (!isValidUrl(jobUrl)) {
+    errors.jobUrl = "URL is invalid. Enter a valid http or https URL.";
+  }
   }
 
   if (sourceType === "raw_text") {
@@ -284,4 +286,14 @@ function updateNewJobFormValidation() {
     submitButton.disabled = !validation.isValid;
   }
 }
+
+function isValidUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 
