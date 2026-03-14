@@ -25,6 +25,7 @@ function renderJob(job) {
   setText("job-title", job.job_title || "—");
   setText("job-company", job.company || "—");
   setText("job-score", formatScore(job.score));
+  setText("job-scored-at", formatDate(job.updated_at));
   setText("job-source-type", job.source_type || "—");
   renderJobUrl(job.job_url);
 
