@@ -8,6 +8,7 @@ import {
 
 let resumes = [];
 let selectedResumeId = null;
+let lastSelectedResumeId = null;
 let handlersBound = false;
 
 // -----------------------------------------------------------------------------
@@ -46,7 +47,17 @@ export function bindResumeHandlers() {
 
 export async function openResumeManager() {
   await refreshResumeList();
-  resetResumeForm();
+
+  const hasSavedSelection = resumes.some(
+    (resume) => resume.resume_id === lastSelectedResumeId
+  );
+
+  if (hasSavedSelection) {
+    await selectResume(lastSelectedResumeId);
+  } else {
+    resetResumeForm();
+  }
+
   document.getElementById("resume-modal")?.classList.remove("hidden");
 }
 
@@ -102,7 +113,20 @@ async function saveResume() {
     }
 
     await refreshResumeList();
-    resetResumeForm();
+
+    if (selectedResumeId) {
+      await selectResume(selectedResumeId);
+    } else {
+      const matchingResume = resumes.find(
+        (resume) => resume.name === resumeName
+      );
+
+      if (matchingResume) {
+        await selectResume(matchingResume.resume_id);
+      } else {
+        resetResumeForm();
+      }
+    }
   } catch (error) {
     console.error("Resume save failed:", error);
     window.alert(`Resume save failed: ${error.message}`);
@@ -122,6 +146,7 @@ async function handleDeleteResume() {
   }
 
   const deleteButton = document.getElementById("delete-resume-btn");
+  const resumeIdToDelete = selectedResumeId;
 
   const confirmed = window.confirm("Delete this resume?");
 
@@ -135,7 +160,11 @@ async function handleDeleteResume() {
       deleteButton.textContent = "Deleting...";
     }
 
-    await deleteResume(selectedResumeId);
+    await deleteResume(resumeIdToDelete);
+
+    if (lastSelectedResumeId === resumeIdToDelete) {
+      lastSelectedResumeId = null;
+    }
 
     await refreshResumeList();
     resetResumeForm();
@@ -195,6 +224,7 @@ async function selectResume(resumeId) {
     const resume = await getResume(resumeId);
 
     selectedResumeId = resume.resume_id;
+    lastSelectedResumeId = resume.resume_id;
 
     document.getElementById("resume-name").value = resume.name || "";
     document.getElementById("resume-text").value = resume.resume || "";

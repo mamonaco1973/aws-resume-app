@@ -2,6 +2,8 @@ import { listResumes } from "./api.js";
 import { loadJobs } from "./jobs.js";
 import { bindResumeHandlers, openResumeManager } from "./resumes.js";
 
+let lastSelectedResumeId = "";
+
 document.addEventListener("DOMContentLoaded", async () => {
   bindUiHandlers();
   bindResumeHandlers();
@@ -25,6 +27,15 @@ function bindUiHandlers() {
   const sourceType = document.getElementById("source-type");
   const urlField = document.getElementById("url-field");
   const textField = document.getElementById("text-field");
+  const resumeSelect = document.getElementById("resume-select");
+
+  // ---------------------------------------------------------------------------
+  // Track last selected resume
+  // ---------------------------------------------------------------------------
+
+  resumeSelect?.addEventListener("change", () => {
+    lastSelectedResumeId = resumeSelect.value;
+  });
 
   // ---------------------------------------------------------------------------
   // Open "Score New Job"
@@ -95,19 +106,23 @@ async function populateResumeSelect() {
     return;
   }
 
-  const placeholder = document.createElement("option");
-  placeholder.value = "";
-  placeholder.textContent = "Select a resume";
-  placeholder.disabled = true;
-  placeholder.selected = true;
-  resumeSelect.appendChild(placeholder);
-
   resumes.forEach((resume) => {
     const option = document.createElement("option");
     option.value = resume.resume_id;
     option.textContent = resume.name || "Untitled Resume";
     resumeSelect.appendChild(option);
   });
+
+  const hasSavedSelection = resumes.some(
+    (resume) => resume.resume_id === lastSelectedResumeId
+  );
+
+  if (hasSavedSelection) {
+    resumeSelect.value = lastSelectedResumeId;
+  } else {
+    resumeSelect.value = resumes[0].resume_id;
+    lastSelectedResumeId = resumes[0].resume_id;
+  }
 }
 
 function resetNewJobForm() {
