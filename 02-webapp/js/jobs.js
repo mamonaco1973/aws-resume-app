@@ -109,7 +109,7 @@ function renderJobsTable() {
       <td>${formatScore(job.score)}</td>
       <td>${formatDate(job.created_at)}</td>
       <td class="row-actions">
-        <a href="/job.html?id=${encodeURIComponent(job.job_id)}" target="_blank" rel="noopener noreferrer">Open</a>
+        <a href="/job.html?id=${encodeURIComponent(job.job_id)}" target="_${escapeHtml(job.job_id)}" rel="noopener noreferrer">Open</a>
         <button type="button" class="delete-job-btn" data-job-id="${escapeHtml(job.job_id)}">
           Delete
         </button>
