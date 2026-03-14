@@ -174,7 +174,7 @@ cd 02-webapp || {
   exit 1
 }
 
-aws s3 cp * BUCKET_NAME/
+aws s3 cp * ${BUCKET_NAME}/
 
 cd ..
 
