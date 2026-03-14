@@ -227,13 +227,16 @@ function validateNewJobForm() {
     }
   }
 
-  if (sourceType === "linkedin_job_id") {
-    const jobIds = parseLinkedInJobIds(linkedinRaw);
+ if (sourceType === "linkedin_job_id") {
+  const jobIds = parseLinkedInJobIds(linkedinRaw);
 
-    if (jobIds.length === 0) {
-      errors.linkedinJobIds = "Enter at least one LinkedIn job ID.";
-    }
+  if (jobIds.length === 0) {
+    errors.linkedinJobIds = "Enter at least one LinkedIn job ID.";
+  } else if (!jobIds.every(isValidLinkedInJobId)) {
+    errors.linkedinJobIds =
+      "Each LinkedIn Job ID must be numeric and 7 to 12 digits long.";
   }
+}
 
   return {
     isValid: Object.keys(errors).length === 0,
@@ -243,10 +246,15 @@ function validateNewJobForm() {
 
 function parseLinkedInJobIds(value) {
   return value
-    .split(/[\n,]/)
+    .split(/\n+/)
     .map((item) => item.trim())
     .filter(Boolean);
 }
+
+function isValidLinkedInJobId(value) {
+  return /^\d{7,12}$/.test(value);
+}
+
 
 function renderNewJobFormErrors(errors) {
   setFieldError("resume-error", errors.resume);
