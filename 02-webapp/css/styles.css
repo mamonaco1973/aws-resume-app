@@ -207,7 +207,8 @@ tr:hover {
 }
 
 .modal-content textarea {
-  height: 120px;
+  height: 320px;
+  resize: vertical;
 }
 
 .modal-actions {
