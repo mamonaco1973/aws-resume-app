@@ -6,17 +6,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
+
 <body>
 
   <header class="app-header">
     <h1>Job Details</h1>
-
-    <div class="actions">
-      <a href="/" class="button-link">Back to Dashboard</a>
-    </div>
   </header>
 
   <main class="job-detail-page">
+
     <div id="job-detail-error" class="field-error hidden"></div>
 
     <section id="job-detail-loading">
@@ -24,11 +22,14 @@
     </section>
 
     <section id="job-detail-content" class="hidden">
+
       <details class="accordion-section" open>
         <summary>General Information</summary>
 
         <div class="accordion-body">
+
           <div class="detail-grid">
+
             <div class="detail-row">
               <div class="detail-label">Job Title</div>
               <div id="job-title" class="detail-value">—</div>
@@ -53,12 +54,17 @@
               <div class="detail-label">Job URL</div>
               <div id="job-url" class="detail-value">—</div>
             </div>
+
           </div>
+
         </div>
       </details>
+
     </section>
+
   </main>
 
   <script type="module" src="/js/job.js"></script>
+
 </body>
 </html>
