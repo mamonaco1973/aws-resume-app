@@ -57,7 +57,9 @@ export async function createJob(payload) {
 export async function updateJobNotes(jobId, notes) {
   return apiRequest(`/jobs/${jobId}/notes`, {
     method: "PATCH",
-    body: JSON.stringify({ notes })
+    body: JSON.stringify({
+      notes: notes
+    })
   });
 }
 
