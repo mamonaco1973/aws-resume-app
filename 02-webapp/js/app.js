@@ -1,4 +1,4 @@
-import { listResumes } from "./api.js";
+import { createJob, listResumes } from "./api.js";
 import { loadJobs } from "./jobs.js";
 import { bindResumeHandlers, openResumeManager } from "./resumes.js";
 
@@ -112,7 +112,11 @@ document
     return;
   }
 
-  console.log("Scoring request is valid. Ready to submit.");
+  await submitJobScoringRequest();
+  document.getElementById("new-job-modal")?.classList.add("hidden");
+  resetNewJobForm();
+  await refreshApp();
+
 });
 
   document.getElementById("btn-refresh")?.addEventListener("click", refreshApp);
@@ -329,5 +333,67 @@ async function refreshApp() {
     }
   }
 }
+
+async function submitJobScoringRequest() {
+  const resumeId = document.getElementById("resume-select")?.value.trim() || "";
+  const sourceType = document.getElementById("source-type")?.value || "url";
+
+  // ---------------------------------------------------------------------------
+  // URL source
+  // ---------------------------------------------------------------------------
+  if (sourceType === "url") {
+    const jobUrl = document.getElementById("job-url")?.value.trim() || "";
+
+    await createJob({
+      resume_id: resumeId,
+      source_type: "url",
+      job_url: jobUrl
+    });
+
+    return;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Raw job description source
+  // ---------------------------------------------------------------------------
+  if (sourceType === "raw_text") {
+    const jobDescription =
+      document.getElementById("job-description")?.value.trim() || "";
+
+    await createJob({
+      resume_id: resumeId,
+      source_type: "raw_text",
+      job_description: jobDescription
+    });
+
+    return;
+  }
+
+  // ---------------------------------------------------------------------------
+  // LinkedIn job IDs
+  // ---------------------------------------------------------------------------
+  if (sourceType === "linkedin_job_id") {
+    const jobIdsText =
+      document.getElementById("linkedin-job-ids")?.value.trim() || "";
+
+    const jobIds = jobIdsText
+      .split("\n")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0);
+
+    for (const jobId of jobIds) {
+      const jobUrl = `https://www.linkedin.com/jobs/view/${jobId}`;
+
+      await createJob({
+        resume_id: resumeId,
+        source_type: "url",
+        job_url: jobUrl
+      });
+    }
+
+    return;
+  }
+}
+
 
 
