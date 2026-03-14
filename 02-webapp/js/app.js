@@ -47,6 +47,7 @@ function bindUiHandlers() {
       await populateResumeSelect();
       updateSourceFields();
       newJobModal?.classList.remove("hidden");
+      updateNewJobFormValidation();
     } catch (error) {
       console.error("Failed to load resumes:", error);
       window.alert(`Failed to load resumes: ${error.message}`);
@@ -77,6 +78,27 @@ function bindUiHandlers() {
   sourceType?.addEventListener("change", () => {
     updateSourceFields();
   });
+
+// ---------------------------------------------------------------------------
+// Live validation listeners
+// ---------------------------------------------------------------------------
+
+resumeSelect?.addEventListener("change", updateNewJobFormValidation);
+
+sourceType?.addEventListener("change", updateNewJobFormValidation);
+
+document
+  .getElementById("job-url")
+  ?.addEventListener("input", updateNewJobFormValidation);
+
+document
+  .getElementById("job-description")
+  ?.addEventListener("input", updateNewJobFormValidation);
+
+document
+  .getElementById("linkedin-job-ids")
+  ?.addEventListener("input", updateNewJobFormValidation);
+
 
   newJobForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -251,4 +273,15 @@ function setFieldError(elementId, message) {
   }
 }
 
+function updateNewJobFormValidation() {
+  const validation = validateNewJobForm();
+
+  renderNewJobFormErrors(validation.errors);
+
+  const submitButton = document.getElementById("submit-new-job");
+
+  if (submitButton) {
+    submitButton.disabled = !validation.isValid;
+  }
+}
 
