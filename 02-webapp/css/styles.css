@@ -351,4 +351,7 @@ tr:hover {
 
 .detail-text-block {
   white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
