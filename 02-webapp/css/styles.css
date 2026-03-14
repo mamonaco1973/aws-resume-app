@@ -343,3 +343,8 @@ tr:hover {
 .detail-value {
   word-break: break-word;
 }
+
+.form-control {
+  width: 100%;
+  box-sizing: border-box;
+}
