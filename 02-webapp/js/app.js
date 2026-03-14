@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindResumeHandlers();
 
   try {
-    await loadJobs();
+    await refreshApp();
   } catch (error) {
     console.error("Failed to load dashboard:", error);
     window.alert(`Failed to load jobs: ${error.message}`);
@@ -114,6 +114,8 @@ document
 
   console.log("Scoring request is valid. Ready to submit.");
 });
+
+  document.getElementById("btn-refresh")?.addEventListener("click", refreshApp);
 
 
 }
@@ -228,7 +230,7 @@ function validateNewJobForm() {
       errors.jobDescription = "Job description is too short.";
     }
   }
-  
+
  if (sourceType === "linkedin_job_id") {
   const jobIds = parseLinkedInJobIds(linkedinRaw);
 
@@ -303,6 +305,28 @@ function isValidUrl(value) {
     return url.protocol === "http:" || url.protocol === "https:";
   } catch {
     return false;
+  }
+}
+
+async function refreshApp() {
+  const refreshButton = document.getElementById("btn-refresh");
+  const originalText = refreshButton?.textContent || "Refresh";
+
+  try {
+    if (refreshButton) {
+      refreshButton.disabled = true;
+      refreshButton.textContent = "Refreshing...";
+    }
+
+    await loadJobs();
+  } catch (error) {
+    console.error("Failed to refresh dashboard:", error);
+    window.alert(`Failed to refresh jobs: ${error.message}`);
+  } finally {
+    if (refreshButton) {
+      refreshButton.disabled = false;
+      refreshButton.textContent = originalText;
+    }
   }
 }
 
