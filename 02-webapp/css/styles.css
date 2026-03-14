@@ -216,3 +216,73 @@ tr:hover {
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* ================================================================ */
+/* Resume Manager */
+/* ================================================================ */
+
+.resume-modal-content {
+  width: 900px;
+  max-width: 95%;
+}
+
+.resume-manager {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+  min-height: 420px;
+}
+
+.resume-sidebar {
+  border-right: 1px solid #e6e6e6;
+  padding-right: 16px;
+}
+
+.resume-sidebar-actions {
+  margin-bottom: 12px;
+}
+
+#resume-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.resume-list-item {
+  border: 1px solid #ddd;
+  background: #fff;
+  padding: 10px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.resume-list-item:hover {
+  background: #f7faff;
+}
+
+.resume-list-item.active {
+  border-color: #2d6cdf;
+  background: #eef4ff;
+}
+
+.resume-list-name {
+  font-weight: 600;
+}
+
+.resume-list-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #666;
+}
+
+.resume-editor h3 {
+  margin-top: 0;
+}
+
+.danger {
+  background: #d64545;
+}
+
+.danger:hover {
+  background: #b33434;
+}

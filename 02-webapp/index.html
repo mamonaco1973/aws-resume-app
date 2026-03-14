@@ -105,31 +105,58 @@
 
   <div id="resume-modal" class="modal hidden">
 
-    <div class="modal-content">
+    <div class="modal-content resume-modal-content">
 
       <h2>Manage Resumes</h2>
 
-      <div id="resume-list"></div>
+      <div class="resume-manager">
 
-      <form id="resume-form">
+        <div class="resume-sidebar">
 
-        <label>Resume Name</label>
-        <input type="text" id="resume-name">
+          <div class="resume-sidebar-actions">
+            <button type="button" id="btn-new-resume">New Resume</button>
+          </div>
 
-        <label>Resume Text</label>
-        <textarea id="resume-text"></textarea>
+          <div id="resume-list"></div>
 
-        <div class="modal-actions">
-          <button type="submit">Save Resume</button>
-          <button type="button" id="close-resume-modal">Close</button>
         </div>
 
-      </form>
+        <div class="resume-editor">
+
+          <h3 id="resume-form-title">Create Resume</h3>
+
+          <form id="resume-form">
+
+            <label>Resume Name</label>
+            <input type="text" id="resume-name">
+
+            <label>Resume Text</label>
+            <textarea id="resume-text"></textarea>
+
+            <div class="modal-actions">
+              <button type="submit" id="save-resume-btn">
+                Create Resume
+              </button>
+              <button
+                type="button"
+                id="delete-resume-btn"
+                class="danger hidden"
+              >
+                Delete
+              </button>
+              <button type="button" id="close-resume-modal">Close</button>
+            </div>
+
+          </form>
+
+        </div>
+
+      </div>
 
     </div>
 
   </div>
-
+  
   <!-- ================================================================ -->
   <!-- Load Application -->
   <!-- ================================================================ -->
