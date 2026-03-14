@@ -3,7 +3,8 @@
 /* ================================================================ */
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial,
+    sans-serif;
   margin: 0;
   background: #f6f8fa;
   color: #222;
@@ -167,10 +168,14 @@ tr:hover {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0,0,0,0.35);
+  background: rgba(0, 0, 0, 0.35);
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.modal.hidden {
+  display: none;
 }
 
 .modal-content {
@@ -198,6 +203,7 @@ tr:hover {
   margin-top: 4px;
   padding: 8px;
   font-size: 14px;
+  box-sizing: border-box;
 }
 
 .modal-content textarea {
