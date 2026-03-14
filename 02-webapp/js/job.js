@@ -1,4 +1,4 @@
-import { getJob } from "./api.js";
+import { getJob, updateJobNotes } from "./api.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const jobId = getJobIdFromUrl();
@@ -7,6 +7,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderError("Missing job ID.");
     return;
   }
+
+  bindNotesHandler(jobId);
 
   try {
     const job = await getJob(jobId);
@@ -27,7 +29,9 @@ function renderJob(job) {
   setText("job-score", formatScore(job.score));
   setText("job-scored-at", formatDate(job.updated_at));
   setText("job-source-type", job.source_type || "—");
+
   renderJobUrl(job.job_url);
+  renderJobNotes(job.notes || "");
 
   document.getElementById("job-detail-loading")?.classList.add("hidden");
   document.getElementById("job-detail-content")?.classList.remove("hidden");
@@ -36,9 +40,7 @@ function renderJob(job) {
 function renderJobUrl(value) {
   const element = document.getElementById("job-url");
 
-  if (!element) {
-    return;
-  }
+  if (!element) return;
 
   if (!value) {
     element.textContent = "—";
@@ -56,6 +58,76 @@ function renderJobUrl(value) {
   `;
 }
 
+function renderJobNotes(value) {
+  const element = document.getElementById("job-notes");
+
+  if (!element) return;
+
+  element.value = value;
+}
+
+function bindNotesHandler(jobId) {
+  const button = document.getElementById("update-job-notes-btn");
+  const textarea = document.getElementById("job-notes");
+
+  if (!button || !textarea) return;
+
+  button.addEventListener("click", async () => {
+    clearNotesMessages();
+
+    const notes = textarea.value;
+
+    button.disabled = true;
+    button.textContent = "Updating...";
+
+    try {
+      await updateJobNotes(jobId, notes);
+      showNotesSuccess("Notes updated.");
+    } catch (error) {
+      showNotesError(`Failed to update notes: ${error.message}`);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Update Notes";
+    }
+  });
+}
+
+function clearNotesMessages() {
+  const errorElement = document.getElementById("job-notes-error");
+  const successElement = document.getElementById("job-notes-success");
+
+  if (errorElement) {
+    errorElement.textContent = "";
+    errorElement.classList.add("hidden");
+  }
+
+  if (successElement) {
+    successElement.textContent = "";
+    successElement.classList.add("hidden");
+  }
+}
+
+function showNotesError(message) {
+  const element = document.getElementById("job-notes-error");
+
+  if (!element) {
+    window.alert(message);
+    return;
+  }
+
+  element.textContent = message;
+  element.classList.remove("hidden");
+}
+
+function showNotesSuccess(message) {
+  const element = document.getElementById("job-notes-success");
+
+  if (!element) return;
+
+  element.textContent = message;
+  element.classList.remove("hidden");
+}
+
 function formatScore(score) {
   return score == null ? "—" : String(score);
 }
@@ -63,9 +135,7 @@ function formatScore(score) {
 function setText(elementId, value) {
   const element = document.getElementById(elementId);
 
-  if (!element) {
-    return;
-  }
+  if (!element) return;
 
   element.textContent = value;
 }
@@ -94,9 +164,7 @@ function escapeHtml(value) {
 }
 
 function formatDate(value) {
-  if (!value) {
-    return "—";
-  }
+  if (!value) return "—";
 
   try {
     const date = new Date(value);
@@ -105,4 +173,3 @@ function formatDate(value) {
     return value;
   }
 }
-
