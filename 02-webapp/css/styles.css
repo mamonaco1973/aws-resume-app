@@ -348,3 +348,7 @@ tr:hover {
   width: 100%;
   box-sizing: border-box;
 }
+
+.detail-text-block {
+  white-space: pre-wrap;
+}

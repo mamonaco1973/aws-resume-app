@@ -27,10 +27,13 @@ function renderJob(job) {
   setText("job-title", job.job_title || "—");
   setText("job-company", job.company || "—");
   setText("job-score", formatScore(job.score));
-  setText("job-scored-at", formatDate(job.updated_at));
+  setText("job-scored-at", formatDate(job.created_at));
   setText("job-source-type", job.source_type || "—");
 
   renderJobUrl(job.job_url);
+  renderTextBlock("job-analysis", job.job_analysis);
+  renderTextBlock("job-description", job.job_description);
+  renderTextBlock("job-resume", job.resume_snapshot);
   renderJobNotes(job.notes || "");
 
   document.getElementById("job-detail-loading")?.classList.add("hidden");
@@ -40,7 +43,9 @@ function renderJob(job) {
 function renderJobUrl(value) {
   const element = document.getElementById("job-url");
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
   if (!value) {
     element.textContent = "—";
@@ -58,10 +63,29 @@ function renderJobUrl(value) {
   `;
 }
 
+function renderTextBlock(elementId, value) {
+  const element = document.getElementById(elementId);
+
+  if (!element) {
+    return;
+  }
+
+  const text = String(value || "").trim();
+
+  if (!text) {
+    element.textContent = "—";
+    return;
+  }
+
+  element.textContent = text;
+}
+
 function renderJobNotes(value) {
   const element = document.getElementById("job-notes");
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
   element.value = value;
 }
@@ -70,7 +94,9 @@ function bindNotesHandler(jobId) {
   const button = document.getElementById("update-job-notes-btn");
   const textarea = document.getElementById("job-notes");
 
-  if (!button || !textarea) return;
+  if (!button || !textarea) {
+    return;
+  }
 
   button.addEventListener("click", async () => {
     clearNotesMessages();
@@ -122,7 +148,9 @@ function showNotesError(message) {
 function showNotesSuccess(message) {
   const element = document.getElementById("job-notes-success");
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
   element.textContent = message;
   element.classList.remove("hidden");
@@ -135,7 +163,9 @@ function formatScore(score) {
 function setText(elementId, value) {
   const element = document.getElementById(elementId);
 
-  if (!element) return;
+  if (!element) {
+    return;
+  }
 
   element.textContent = value;
 }
@@ -164,7 +194,9 @@ function escapeHtml(value) {
 }
 
 function formatDate(value) {
-  if (!value) return "—";
+  if (!value) {
+    return "—";
+  }
 
   try {
     const date = new Date(value);
