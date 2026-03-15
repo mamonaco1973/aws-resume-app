@@ -1,6 +1,6 @@
 # =================================================================================
 # worker.py
-# SQS worker for V1 job ingestion and extraction
+# SQS worker for V1 job ingestion, extraction, and scoring
 #
 # V1 flow
 # 1) Read SQS message
@@ -11,9 +11,12 @@
 #    - job_title
 #    - company_name
 #    - job_text
-# 6) Store job_text in S3
-# 7) Update DynamoDB with extracted fields
-# 8) Set job status = Scored
+# 6) Store normalized job_text in S3
+# 7) Read resume_snapshot.txt and job_description.txt from S3
+# 8) Call Bedrock again to score the resume against the job
+# 9) Store job_analysis.txt in S3
+# 10) Update DynamoDB with extracted fields and score
+# 11) Set job status = Scored
 #
 # Expected SQS message body
 # {
@@ -159,9 +162,23 @@ def strip_code_fences(text):
 
 def build_job_description_key(user_id, job_id):
     """
-    Return the canonical S3 key for a job description artifact.
+    Return the canonical S3 key for the job description artifact.
     """
     return f"users/USER#{user_id}/jobs/JOB#{job_id}/job_description.txt"
+
+
+def build_resume_snapshot_key(user_id, job_id):
+    """
+    Return the canonical S3 key for the job-owned resume snapshot artifact.
+    """
+    return f"users/USER#{user_id}/jobs/JOB#{job_id}/resume_snapshot.txt"
+
+
+def build_job_analysis_key(user_id, job_id):
+    """
+    Return the canonical S3 key for the job analysis artifact.
+    """
+    return f"users/USER#{user_id}/jobs/JOB#{job_id}/job_analysis.txt"
 
 
 def read_s3_text(key):
@@ -170,6 +187,18 @@ def read_s3_text(key):
     """
     result = s3.get_object(Bucket=BACKEND_BUCKET, Key=key)
     return result["Body"].read().decode("utf-8")
+
+
+def write_s3_text(key, text):
+    """
+    Write a UTF-8 text object to S3.
+    """
+    s3.put_object(
+        Bucket=BACKEND_BUCKET,
+        Key=key,
+        Body=text.encode("utf-8"),
+        ContentType="text/plain; charset=utf-8",
+    )
 
 
 # =================================================================================
@@ -208,9 +237,10 @@ def update_job_extracted_fields(
     job_title,
     company_name,
     job_description_s3_key,
+    score,
 ):
     """
-    Save extracted job metadata back to the job record.
+    Save extracted job metadata and numeric score back to the job record.
     """
     table.update_item(
         Key={
@@ -221,12 +251,14 @@ def update_job_extracted_fields(
             "SET job_title = :job_title, "
             "company = :company, "
             "job_description_s3_key = :job_description_s3_key, "
+            "score = :score, "
             "updated_at = :updated_at"
         ),
         ExpressionAttributeValues={
             ":job_title": job_title,
             ":company": company_name,
             ":job_description_s3_key": job_description_s3_key,
+            ":score": score,
             ":updated_at": utc_now(),
         },
     )
@@ -429,6 +461,67 @@ SOURCE TEXT:
     return json.loads(text)
 
 
+def score_resume_with_bedrock(resume_text, job_text):
+    """
+    Ask Bedrock to score a resume against a job description.
+
+    Expected output JSON:
+    - score
+    - summary
+    """
+    prompt = f"""
+You are scoring a resume against a job description.
+
+Return valid JSON only.
+
+Required JSON fields:
+- score
+- summary
+
+Rules:
+- score: integer from 0 to 100
+- summary: plain-text analysis explaining the score
+- Do not wrap the response in markdown
+- Do not include any explanation outside the JSON
+
+RESUME:
+{resume_text[:MAX_SOURCE_TEXT_CHARS]}
+
+JOB DESCRIPTION:
+{job_text[:MAX_SOURCE_TEXT_CHARS]}
+""".strip()
+
+    body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 4000,
+        "temperature": 0,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt,
+                    }
+                ],
+            }
+        ],
+    }
+
+    response = bedrock_runtime.invoke_model(
+        modelId=BEDROCK_MODEL_ID,
+        body=json.dumps(body),
+        contentType="application/json",
+        accept="application/json",
+    )
+
+    payload = json.loads(response["body"].read())
+    text = payload["content"][0]["text"].strip()
+    text = strip_code_fences(text)
+
+    return json.loads(text)
+
+
 # =================================================================================
 # S3 helpers
 # =================================================================================
@@ -436,21 +529,103 @@ SOURCE TEXT:
 
 def put_job_description_to_s3(user_id, job_id, job_text):
     """
-    Store the extracted job description in the backend bucket.
+    Store the normalized job description in the backend bucket.
 
     Object layout:
       users/USER#<user_id>/jobs/JOB#<job_id>/job_description.txt
     """
     key = build_job_description_key(user_id, job_id)
-
-    s3.put_object(
-        Bucket=BACKEND_BUCKET,
-        Key=key,
-        Body=job_text.encode("utf-8"),
-        ContentType="text/plain; charset=utf-8",
-    )
-
+    write_s3_text(key, job_text)
     return key
+
+
+def put_job_analysis_to_s3(user_id, job_id, analysis_text):
+    """
+    Store the job analysis in the backend bucket.
+
+    Object layout:
+      users/USER#<user_id>/jobs/JOB#<job_id>/job_analysis.txt
+    """
+    key = build_job_analysis_key(user_id, job_id)
+    write_s3_text(key, analysis_text)
+    return key
+
+
+# =================================================================================
+# Scoring helper
+# =================================================================================
+
+
+def score_job_against_resume(user_id, job_id):
+    """
+    Read the stored resume snapshot and job description, score the resume
+    against the job, store the analysis in S3, and return the numeric score.
+    """
+    resume_snapshot_key = build_resume_snapshot_key(user_id, job_id)
+    job_description_key = build_job_description_key(user_id, job_id)
+
+    # -----------------------------------------------------------------------------
+    # Read stored scoring inputs from S3
+    # -----------------------------------------------------------------------------
+
+    try:
+        resume_text = read_s3_text(resume_snapshot_key).strip()
+        job_text = read_s3_text(job_description_key).strip()
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to read scoring inputs from S3: {exc}"
+        ) from exc
+
+    if not resume_text:
+        raise RuntimeError("Stored resume snapshot is empty")
+
+    if not job_text:
+        raise RuntimeError("Stored job description is empty")
+
+    # -----------------------------------------------------------------------------
+    # Ask Bedrock to score the resume against the job
+    # -----------------------------------------------------------------------------
+
+    try:
+        scored = score_resume_with_bedrock(resume_text, job_text)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to score resume against job: {exc}"
+        ) from exc
+
+    if not isinstance(scored, dict):
+        raise RuntimeError("Bedrock scoring returned an invalid response")
+
+    score = scored.get("score")
+    summary = str(scored.get("summary", "")).strip()
+
+    # Accept a numeric string if the model returns "82" instead of 82.
+    if isinstance(score, str) and score.strip().isdigit():
+        score = int(score.strip())
+
+    if not isinstance(score, int):
+        raise RuntimeError("Bedrock scoring did not return an integer score")
+
+    if score < 0 or score > 100:
+        raise RuntimeError("Bedrock scoring returned a score outside 0-100")
+
+    if not summary:
+        raise RuntimeError("Bedrock scoring did not return analysis text")
+
+    # -----------------------------------------------------------------------------
+    # Persist human-readable analysis text to S3
+    # -----------------------------------------------------------------------------
+
+    try:
+        put_job_analysis_to_s3(
+            user_id=user_id,
+            job_id=job_id,
+            analysis_text=summary,
+        )
+    except Exception as exc:
+        raise RuntimeError(f"Failed to store job analysis: {exc}") from exc
+
+    return score
 
 
 # =================================================================================
@@ -460,7 +635,8 @@ def put_job_description_to_s3(user_id, job_id, job_text):
 
 def process_url_job(user_id, job_id, job_url):
     """
-    Process a URL-based job by retrieving the page and extracting job fields.
+    Process a URL-based job by retrieving the page, extracting job fields,
+    scoring the resume against the normalized job text, and saving results.
     """
     if not job_url:
         logger.error(
@@ -477,7 +653,7 @@ def process_url_job(user_id, job_id, job_url):
         return
 
     # -----------------------------------------------------------------------------
-    # Retrieve HTML from the URL
+    # Retrieve raw HTML from the job URL
     # -----------------------------------------------------------------------------
 
     try:
@@ -506,7 +682,7 @@ def process_url_job(user_id, job_id, job_url):
         return
 
     # -----------------------------------------------------------------------------
-    # Convert HTML to visible text
+    # Convert raw HTML into visible text suitable for extraction
     # -----------------------------------------------------------------------------
 
     try:
@@ -546,7 +722,7 @@ def process_url_job(user_id, job_id, job_url):
         return
 
     # -----------------------------------------------------------------------------
-    # Extract structured fields with Bedrock
+    # Extract structured job fields from the cleaned text
     # -----------------------------------------------------------------------------
 
     try:
@@ -616,7 +792,7 @@ def process_url_job(user_id, job_id, job_url):
         return
 
     # -----------------------------------------------------------------------------
-    # Store job description in S3
+    # Persist normalized job description to S3
     # -----------------------------------------------------------------------------
 
     try:
@@ -649,20 +825,27 @@ def process_url_job(user_id, job_id, job_url):
         return
 
     # -----------------------------------------------------------------------------
-    # Save extracted metadata to DynamoDB
+    # Score the stored resume snapshot against the stored job description and
+    # update DynamoDB with the extracted metadata plus score
     # -----------------------------------------------------------------------------
 
     try:
+        score = score_job_against_resume(
+            user_id=user_id,
+            job_id=job_id,
+        )
+
         update_job_extracted_fields(
             user_id=user_id,
             job_id=job_id,
             job_title=job_title,
             company_name=company_name,
             job_description_s3_key=job_description_s3_key,
+            score=score,
         )
     except Exception as exc:
         logger.exception(
-            "Failed to update job metadata. user_id=%s job_id=%s",
+            "Failed to score job or update metadata. user_id=%s job_id=%s",
             user_id,
             job_id,
         )
@@ -671,13 +854,13 @@ def process_url_job(user_id, job_id, job_url):
             job_id=job_id,
             status="Error",
             status_message=safe_status_message(
-                f"Failed to update job metadata: {exc}"
+                f"Failed to score job: {exc}"
             ),
         )
         return
 
     # -----------------------------------------------------------------------------
-    # Mark job as complete for V1
+    # Mark the job complete
     # -----------------------------------------------------------------------------
 
     update_job_status(
@@ -688,7 +871,7 @@ def process_url_job(user_id, job_id, job_url):
     )
 
     logger.info(
-        "Job processed successfully. user_id=%s job_id=%s",
+        "URL job processed successfully. user_id=%s job_id=%s",
         user_id,
         job_id,
     )
@@ -696,13 +879,14 @@ def process_url_job(user_id, job_id, job_url):
 
 def process_raw_text_job(user_id, job_id):
     """
-    Process a raw-text job by reading the previously stored S3 artifact and
-    extracting metadata from it with Bedrock.
+    Process a raw-text job by reading the previously stored S3 artifact,
+    extracting metadata from it, scoring the resume against it, and saving the
+    results.
     """
     job_description_key = build_job_description_key(user_id, job_id)
 
     # -----------------------------------------------------------------------------
-    # Read stored raw-text job description from S3
+    # Read the stored raw-text job description from S3
     # -----------------------------------------------------------------------------
 
     try:
@@ -749,7 +933,7 @@ def process_raw_text_job(user_id, job_id):
         return
 
     # -----------------------------------------------------------------------------
-    # Extract title and company using Bedrock from the stored text
+    # Extract title and company from the stored job text
     # -----------------------------------------------------------------------------
 
     try:
@@ -776,7 +960,7 @@ def process_raw_text_job(user_id, job_id):
         extracted_job_text = str(extracted.get("job_text", "")).strip()
 
         # Preserve the original stored job text if the model returns blank or
-        # something shorter / worse than what was provided.
+        # something shorter / worse than what was originally supplied.
         if extracted_job_text and len(extracted_job_text) >= MIN_JOB_TEXT_CHARS:
             job_text = extracted_job_text
 
@@ -797,7 +981,8 @@ def process_raw_text_job(user_id, job_id):
         return
 
     # -----------------------------------------------------------------------------
-    # Re-write the canonical job description artifact
+    # Re-write the canonical job description artifact so both URL and raw-text
+    # jobs end up in the same normalized location
     # -----------------------------------------------------------------------------
 
     try:
@@ -816,8 +1001,8 @@ def process_raw_text_job(user_id, job_id):
         )
     except Exception as exc:
         logger.exception(
-            "Failed to store normalized raw-text job description. user_id=%s "
-            "job_id=%s",
+            "Failed to store normalized raw-text job description. "
+            "user_id=%s job_id=%s",
             user_id,
             job_id,
         )
@@ -832,20 +1017,28 @@ def process_raw_text_job(user_id, job_id):
         return
 
     # -----------------------------------------------------------------------------
-    # Save extracted metadata to DynamoDB
+    # Score the stored resume snapshot against the normalized job description and
+    # update DynamoDB with the extracted metadata plus score
     # -----------------------------------------------------------------------------
 
     try:
+        score = score_job_against_resume(
+            user_id=user_id,
+            job_id=job_id,
+        )
+
         update_job_extracted_fields(
             user_id=user_id,
             job_id=job_id,
             job_title=job_title,
             company_name=company_name,
             job_description_s3_key=job_description_s3_key,
+            score=score,
         )
     except Exception as exc:
         logger.exception(
-            "Failed to update raw-text job metadata. user_id=%s job_id=%s",
+            "Failed to score raw-text job or update metadata. "
+            "user_id=%s job_id=%s",
             user_id,
             job_id,
         )
@@ -854,7 +1047,7 @@ def process_raw_text_job(user_id, job_id):
             job_id=job_id,
             status="Error",
             status_message=safe_status_message(
-                f"Failed to update job metadata: {exc}"
+                f"Failed to score job: {exc}"
             ),
         )
         return
