@@ -104,11 +104,6 @@ echo "NOTE: Web application URL - $BUCKET_URL/index.html"
 
 cd ..
 
-# envsubst '${API_BASE}' < index.html.tmpl > index.html || {
-#   echo "ERROR: Failed to generate index.html."
-#   exit 1
-# }
-
 # # ------------------------------------------------------------------------------
 # # READ COGNITO OUTPUTS FROM BACKEND STACK
 # # ------------------------------------------------------------------------------
