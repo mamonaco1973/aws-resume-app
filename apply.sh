@@ -94,7 +94,7 @@ cd 02-webapp || {
   exit 1
 }
 
-envsubst config.js.tmpl > config.js || {
+envsubst < config.js.tmpl > config.js || {
   echo "ERROR: Failed to generate config.js."
   exit 1
 }
