@@ -10,11 +10,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindUiHandlers();
   bindResumeHandlers();
 
+  if (!isLoggedIn()) {
+    showNotLoggedInMessage();
+    return;
+  }
+
   try {
     await refreshApp();
   } catch (error) {
     console.error("Failed to load dashboard:", error);
-    window.alert(`Failed to load jobs: ${error.message}`);
   }
 });
 
@@ -422,11 +426,38 @@ function updateAuthButtons() {
   const signIn = document.getElementById("btn-sign-in");
   const signOut = document.getElementById("btn-sign-out");
 
-  if (isLoggedIn()) {
+  const refresh = document.getElementById("btn-refresh");
+  const scoreJob = document.getElementById("btn-new-job");
+  const manageResumes = document.getElementById("btn-manage-resumes");
+
+  const loggedIn = isLoggedIn();
+
+  if (loggedIn) {
     signIn?.classList.add("hidden");
     signOut?.classList.remove("hidden");
+
+    refresh?.removeAttribute("disabled");
+    scoreJob?.removeAttribute("disabled");
+    manageResumes?.removeAttribute("disabled");
+
   } else {
     signIn?.classList.remove("hidden");
     signOut?.classList.add("hidden");
+
+    refresh?.setAttribute("disabled", "true");
+    scoreJob?.setAttribute("disabled", "true");
+    manageResumes?.setAttribute("disabled", "true");
+  }
+}
+
+function showNotLoggedInMessage() {
+  const container = document.getElementById("jobs-container");
+
+  if (container) {
+    container.innerHTML = `
+      <div class="empty-state">
+        Please sign in to use the application.
+      </div>
+    `;
   }
 }
