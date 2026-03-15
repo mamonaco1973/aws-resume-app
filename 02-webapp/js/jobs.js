@@ -109,8 +109,16 @@ function renderJobsTable() {
       <td>${formatScore(job.score)}</td>
       <td>${formatDate(job.created_at)}</td>
       <td class="row-actions">
-        <a href="/job.html?id=${encodeURIComponent(job.job_id)}" target="${escapeHtml(job.job_id)}">Open</a>
-        <button type="button" class="delete-job-btn" data-job-id="${escapeHtml(job.job_id)}">
+        <button
+          type="button"
+          class="open-job-btn"
+          data-job-id="${escapeHtml(job.job_id)}">
+          Open
+        </button>
+        <button
+          type="button"
+          class="delete-job-btn"
+          data-job-id="${escapeHtml(job.job_id)}">
           Delete
         </button>
       </td>
@@ -119,6 +127,7 @@ function renderJobsTable() {
     tbody.appendChild(row);
   });
 
+  bindOpenHandlers();
   bindDeleteHandlers();
 }
 
@@ -143,6 +152,32 @@ function formatDate(value) {
   }
 
   return date.toLocaleDateString();
+}
+
+// -----------------------------------------------------------------------------
+// Open actions
+// -----------------------------------------------------------------------------
+
+function bindOpenHandlers() {
+  const buttons = document.querySelectorAll(".open-job-btn");
+
+  buttons.forEach((button) => {
+    if (button.dataset.bound === "true") {
+      return;
+    }
+
+    button.addEventListener("click", () => {
+      const jobId = button.dataset.jobId;
+
+      if (!jobId) {
+        return;
+      }
+
+      window.location.href = `/job.html?id=${encodeURIComponent(jobId)}`;
+    });
+
+    button.dataset.bound = "true";
+  });
 }
 
 // -----------------------------------------------------------------------------
