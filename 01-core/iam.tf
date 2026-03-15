@@ -130,3 +130,30 @@ resource "aws_iam_role_policy_attachment" "lambda_sqs_attach" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = aws_iam_policy.lambda_sqs.arn
 }
+
+# ================================================================================
+# Bedrock access policy
+# ================================================================================
+
+resource "aws_iam_policy" "lambda_bedrock" {
+  name = "resume-app-bedrock-${random_id.bucket_suffix.hex}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "BedrockInvoke"
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_bedrock_attach" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = aws_iam_policy.lambda_bedrock.arn
+}

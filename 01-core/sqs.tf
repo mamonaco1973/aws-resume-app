@@ -28,7 +28,7 @@ resource "aws_sqs_queue" "job_requests" {
 
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.job_requests_dlq.arn
-    maxReceiveCount     = 5
+    maxReceiveCount     = 1
   })
 
   tags = {
@@ -48,4 +48,18 @@ resource "aws_sqs_queue_redrive_allow_policy" "job_requests_dlq" {
     redrivePermission = "byQueue"
     sourceQueueArns   = [aws_sqs_queue.job_requests.arn]
   })
+}
+
+# ================================================================================
+# SQS -> Worker Lambda event source mapping
+# Connects the job request queue to worker.py
+# ================================================================================
+
+resource "aws_lambda_event_source_mapping" "worker_sqs" {
+  event_source_arn = aws_sqs_queue.job_requests.arn
+  function_name    = aws_lambda_function.worker.arn
+
+  batch_size                         = 1
+  maximum_batching_window_in_seconds = 0
+  enabled                            = true
 }
