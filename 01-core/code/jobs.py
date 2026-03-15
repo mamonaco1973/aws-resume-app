@@ -253,6 +253,7 @@ def create_job(event):
             "source_type": source_type,
             "job_url": job_url if source_type == "url" else "",
             "status": "submitted",
+            "status_message": "Job submitted for scoring",
             "job_title": "",
             "company": "",
             "score": None,
@@ -265,7 +266,8 @@ def create_job(event):
         200,
         {
             "job_id": job_id,
-            "status": "submitted"
+            "status": "submitted",
+            "status_message": "Job submitted for scoring"
         }
     )
 
@@ -290,6 +292,7 @@ def list_jobs(event=None):
             "job_id": item["sk"].replace("JOB#", "", 1),
             "resume_id": item.get("resume_id"),
             "status": item.get("status"),
+            "status_message": item.get("status_message"),
             "job_title": item.get("job_title"),
             "company": item.get("company"),
             "score": item.get("score"),
@@ -337,6 +340,7 @@ def get_job(event):
             "source_type": item.get("source_type"),
             "job_url": item.get("job_url"),
             "status": item.get("status"),
+            "status_message": item.get("status_message"),
             "job_title": item.get("job_title", ""),
             "company": item.get("company", ""),
             "score": item.get("score"),
