@@ -99,8 +99,8 @@ envsubst < js/config.js.tmpl > js/config.js || {
   exit 1
 }
 
-#aws s3 cp . s3://${BUCKET_NAME} --recursive
-#echo "NOTE: Web application URL - $BUCKET_URL/index.html"
+aws s3 cp . s3://${BUCKET_NAME} --recursive
+echo "NOTE: Web application URL - $BUCKET_URL/index.html"
 
 cd ..
 
