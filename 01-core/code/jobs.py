@@ -37,8 +37,10 @@ from botocore.exceptions import ClientError
 
 table = boto3.resource("dynamodb").Table(os.environ["TABLE_NAME"])
 s3 = boto3.client("s3")
+sqs = boto3.client("sqs")
 
 BACKEND_BUCKET = os.environ["BACKEND_BUCKET_NAME"]
+JOB_QUEUE_URL = os.environ["JOB_QUEUE_URL"]
 
 
 # ------------------------------------------------------------------------------
@@ -158,6 +160,21 @@ def delete_s3_object(key):
     )
 
 
+def enqueue_job_request(user_id, job_id, resume_id, source_type, job_url):
+    message = {
+        "user_id": user_id,
+        "job_id": job_id,
+        "resume_id": resume_id,
+        "source_type": source_type,
+        "job_url": job_url
+    }
+
+    sqs.send_message(
+        QueueUrl=JOB_QUEUE_URL,
+        MessageBody=json.dumps(message)
+    )
+
+
 # ------------------------------------------------------------------------------
 # POST /jobs
 #
@@ -261,6 +278,47 @@ def create_job(event):
             "updated_at": now
         }
     )
+
+    # --------------------------------------------------------------------------
+    # Enqueue scoring request
+    # --------------------------------------------------------------------------
+
+    try:
+        enqueue_job_request(
+            user_id=user_id,
+            job_id=job_id,
+            resume_id=resume_id,
+            source_type=source_type,
+            job_url=job_url if source_type == "url" else ""
+        )
+    except ClientError as exc:
+        table.update_item(
+            Key={
+                "pk": paths["pk"],
+                "sk": paths["sk"]
+            },
+            UpdateExpression=(
+                "SET #status = :status, "
+                "status_message = :status_message, "
+                "updated_at = :updated_at"
+            ),
+            ExpressionAttributeNames={
+                "#status": "status"
+            },
+            ExpressionAttributeValues={
+                ":status": "queue_error",
+                ":status_message": "Failed to enqueue scoring request",
+                ":updated_at": utc_now()
+            }
+        )
+
+        return response(
+            500,
+            {
+                "error": "failed to enqueue scoring request",
+                "details": str(exc)
+            }
+        )
 
     return response(
         200,

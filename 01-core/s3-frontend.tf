@@ -5,7 +5,7 @@
 # =================================================================================
 
 resource "aws_s3_bucket" "frontend" {
-  bucket = "${var.frontend_bucket_base_name}-${random_id.bucket_suffix.hex}"
+  bucket        = "${var.frontend_bucket_base_name}-${random_id.bucket_suffix.hex}"
   force_destroy = true
 }
 

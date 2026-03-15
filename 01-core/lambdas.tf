@@ -18,8 +18,9 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      TABLE_NAME     = aws_dynamodb_table.app_table.name
+      TABLE_NAME          = aws_dynamodb_table.app_table.name
       BACKEND_BUCKET_NAME = aws_s3_bucket.backend.bucket
+      JOB_QUEUE_URL       = aws_sqs_queue.job_requests.id
     }
   }
 }
