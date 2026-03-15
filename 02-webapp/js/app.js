@@ -1,11 +1,12 @@
 import { createJob, listResumes } from "./api.js";
 import { loadJobs } from "./jobs.js";
 import { bindResumeHandlers, openResumeManager } from "./resumes.js";
-import { getLoginUrl } from "./auth.js";
+import { getLoginUrl, getLogoutUrl, isLoggedIn } from "./auth.js";
 
 let lastSelectedResumeId = "";
 
 document.addEventListener("DOMContentLoaded", async () => {
+  updateAuthButtons();
   bindUiHandlers();
   bindResumeHandlers();
 
@@ -25,7 +26,8 @@ function bindUiHandlers() {
   const btnManageResumes = document.getElementById("btn-manage-resumes");
   const cancelNewJob = document.getElementById("cancel-new-job");
   const btnSignIn = document.getElementById("btn-sign-in");
-
+  const btnSignOut = document.getElementById("btn-sign-out");
+  
   const sourceType = document.getElementById("source-type");
   const resumeSelect = document.getElementById("resume-select");
   const newJobForm = document.getElementById("new-job-form");
@@ -131,6 +133,17 @@ document
     window.location.href = getLoginUrl();
   });
 
+  // ---------------------------------------------------------------------------
+  // Sign out
+  // ---------------------------------------------------------------------------
+
+  btnSignOut?.addEventListener("click", () => {
+  localStorage.removeItem("id_token");
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
+
+  window.location.href = getLogoutUrl();
+  });
 
 }
 
@@ -405,5 +418,15 @@ async function submitJobScoringRequest() {
   }
 }
 
+function updateAuthButtons() {
+  const signIn = document.getElementById("btn-sign-in");
+  const signOut = document.getElementById("btn-sign-out");
 
-
+  if (isLoggedIn()) {
+    signIn?.classList.add("hidden");
+    signOut?.classList.remove("hidden");
+  } else {
+    signIn?.classList.remove("hidden");
+    signOut?.classList.add("hidden");
+  }
+}

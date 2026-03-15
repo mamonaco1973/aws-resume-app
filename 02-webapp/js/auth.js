@@ -99,3 +99,12 @@ export function clearTokens() {
 export function getPostLoginRedirectUrl() {
   return `${window.location.origin}/index.html`;
 }
+
+export function getLogoutUrl() {
+  const params = new URLSearchParams({
+    client_id: CLIENT_ID,
+    logout_uri: `${window.location.origin}/index.html`
+  });
+
+  return `${COGNITO_DOMAIN}/logout?${params.toString()}`;
+}
