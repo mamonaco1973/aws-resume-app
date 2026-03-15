@@ -71,6 +71,10 @@ cd 01-core || {
   exit 1
 }
 
+cd code
+pip install -r requirements.txt -t .
+cd ..
+
 terraform init
 terraform apply -auto-approve
 
