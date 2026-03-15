@@ -74,7 +74,7 @@ resource "aws_cognito_user_pool_client" "resume_app" {
 
   supported_identity_providers = ["COGNITO"]
 
-  callback_urls = ["${local.spa_origin}/index.html"]
+  callback_urls = ["${local.spa_origin}/callback.html"]
   logout_urls   = ["${local.spa_origin}/index.html"]
 }
 
