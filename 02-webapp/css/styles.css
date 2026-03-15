@@ -100,7 +100,7 @@ tr:hover {
 
 .row-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .row-actions a {
@@ -108,11 +108,21 @@ tr:hover {
   color: #2d6cdf;
 }
 
-.row-actions button {
-  background: #d64545;
+.row-actions .open-job-btn {
+  background: #2d6cdf;
+  color: white;
 }
 
-.row-actions button:hover {
+.row-actions .open-job-btn:hover {
+  background: #1f4fb2;
+}
+
+.row-actions .delete-job-btn {
+  background: #d64545;
+  color: white;
+}
+
+.row-actions .delete-job-btn:hover {
   background: #b33434;
 }
 
@@ -355,15 +365,3 @@ tr:hover {
   font-size: 0.8rem;
   line-height: 1.5;
 }
-
-.open-job-btn {
-  background-color: #2f6edb;
-  color: white;
-  border: none;
-}
-
-.open-job-btn:hover {
-  background-color: #255bc0;
-}
-
-.row-actions { display: flex; gap: 8px; }
