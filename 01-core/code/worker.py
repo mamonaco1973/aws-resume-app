@@ -1,0 +1,727 @@
+# =================================================================================
+# worker.py
+# SQS worker for V1 job ingestion and extraction
+#
+# V1 flow
+# 1) Read SQS message
+# 2) Set job status = Scoring
+# 3) If job_type == url, retrieve HTML from job URL
+# 4) Strip irrelevant HTML and extract visible text
+# 5) Call Bedrock to extract:
+#    - job_title
+#    - company_name
+#    - job_text
+# 6) Store job_text in S3
+# 7) Update DynamoDB with extracted fields
+# 8) Set job status = Scored
+# =================================================================================
+
+import json
+import logging
+import os
+import re
+import urllib.request
+from datetime import datetime, timezone
+
+import boto3
+from bs4 import BeautifulSoup, Comment
+
+# =================================================================================
+# Logging
+# =================================================================================
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# =================================================================================
+# AWS clients
+# =================================================================================
+
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table(os.environ["TABLE_NAME"])
+
+bedrock_runtime = boto3.client("bedrock-runtime")
+s3 = boto3.client("s3")
+
+# =================================================================================
+# Constants
+# =================================================================================
+
+MAX_SOURCE_TEXT_CHARS = 120000
+MIN_JOB_TEXT_CHARS = 100
+
+# Tags that generally do not contain useful job-description content.
+REMOVE_TAGS = {
+    "script",
+    "style",
+    "noscript",
+    "svg",
+    "img",
+    "picture",
+    "source",
+    "video",
+    "audio",
+    "canvas",
+    "iframe",
+    "object",
+    "embed",
+    "form",
+    "input",
+    "button",
+    "select",
+    "option",
+    "textarea",
+    "label",
+    "nav",
+    "footer",
+}
+
+# Tags that should introduce visible spacing in extracted text.
+BLOCK_TAGS = {
+    "p",
+    "div",
+    "section",
+    "article",
+    "main",
+    "aside",
+    "header",
+    "li",
+    "ul",
+    "ol",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "br",
+    "tr",
+    "table",
+}
+
+# =================================================================================
+# Generic helpers
+# =================================================================================
+
+
+def utc_now():
+    """Return current UTC timestamp without microseconds."""
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def safe_status_message(message, max_len=500):
+    """
+    Keep status_message short enough for predictable DynamoDB storage and UI use.
+    """
+    message = str(message).strip()
+
+    if len(message) <= max_len:
+        return message
+
+    return message[: max_len - 3] + "..."
+
+
+def strip_code_fences(text):
+    """
+    Remove Markdown code fences if the model returns fenced JSON.
+    """
+    text = text.strip()
+
+    if not text.startswith("```"):
+        return text
+
+    lines = text.splitlines()
+
+    if lines:
+        lines = lines[1:]
+
+    if lines and lines[-1].strip() == "```":
+        lines = lines[:-1]
+
+    return "\n".join(lines).strip()
+
+
+# =================================================================================
+# DynamoDB helpers
+# =================================================================================
+
+
+def update_job_status(user_id, job_id, status, status_message):
+    """
+    Update the top-level processing status for a job.
+    """
+    table.update_item(
+        Key={
+            "pk": f"USER#{user_id}",
+            "sk": f"JOB#{job_id}",
+        },
+        UpdateExpression=(
+            "SET #status = :status, "
+            "status_message = :status_message, "
+            "updated_at = :updated_at"
+        ),
+        ExpressionAttributeNames={
+            "#status": "status",
+        },
+        ExpressionAttributeValues={
+            ":status": status,
+            ":status_message": status_message,
+            ":updated_at": utc_now(),
+        },
+    )
+
+
+def update_job_extracted_fields(
+    user_id,
+    job_id,
+    job_title,
+    company_name,
+    job_description_s3_key,
+):
+    """
+    Save extracted job metadata back to the job record.
+    """
+    table.update_item(
+        Key={
+            "pk": f"USER#{user_id}",
+            "sk": f"JOB#{job_id}",
+        },
+        UpdateExpression=(
+            "SET job_title = :job_title, "
+            "company = :company, "
+            "job_description_s3_key = :job_description_s3_key, "
+            "updated_at = :updated_at"
+        ),
+        ExpressionAttributeValues={
+            ":job_title": job_title,
+            ":company": company_name,
+            ":job_description_s3_key": job_description_s3_key,
+            ":updated_at": utc_now(),
+        },
+    )
+
+
+# =================================================================================
+# URL retrieval helpers
+# =================================================================================
+
+
+def fetch_url_html(url):
+    """
+    Retrieve raw HTML from a job posting URL.
+
+    A browser-like User-Agent improves compatibility with some job sites.
+    """
+    request = urllib.request.Request(
+        url,
+        headers={
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/122.0.0.0 Safari/537.36"
+            )
+        },
+    )
+
+    with urllib.request.urlopen(request, timeout=30) as response:
+        charset = response.headers.get_content_charset() or "utf-8"
+        return response.read().decode(charset, errors="replace")
+
+
+# =================================================================================
+# HTML cleanup helpers
+# =================================================================================
+
+
+def collapse_whitespace(text):
+    """
+    Normalize whitespace so the text is easier for Bedrock to process.
+    """
+    text = text.replace("\r", "\n")
+    text = re.sub(r"[ \t\f\v]+", " ", text)
+    text = re.sub(r" *\n *", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def is_hidden(tag):
+    """
+    Detect common hidden-element patterns.
+    """
+    if not getattr(tag, "attrs", None):
+        return False
+
+    if "hidden" in tag.attrs:
+        return True
+
+    style = str(tag.attrs.get("style", "")).lower()
+    if "display:none" in style or "display: none" in style:
+        return True
+
+    if "visibility:hidden" in style or "visibility: hidden" in style:
+        return True
+
+    aria_hidden = str(tag.attrs.get("aria-hidden", "")).lower()
+    if aria_hidden == "true":
+        return True
+
+    return False
+
+
+def remove_unwanted_nodes(soup):
+    """
+    Remove comments, junk tags, and hidden elements.
+    """
+    for comment in soup.find_all(string=lambda s: isinstance(s, Comment)):
+        comment.extract()
+
+    for tag_name in REMOVE_TAGS:
+        for tag in soup.find_all(tag_name):
+            tag.decompose()
+
+    for tag in soup.find_all(True):
+        if is_hidden(tag):
+            tag.decompose()
+
+
+def add_block_separators(soup):
+    """
+    Add newline spacing around block-like elements before text extraction.
+    """
+    for tag in soup.find_all(BLOCK_TAGS):
+        if tag.name == "br":
+            tag.replace_with("\n")
+            continue
+
+        if tag.string is not None:
+            tag.insert_before("\n")
+            tag.insert_after("\n")
+
+
+def extract_visible_text(html):
+    """
+    Convert HTML into a cleaned text payload for model extraction.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+
+    remove_unwanted_nodes(soup)
+    add_block_separators(soup)
+
+    parts = []
+
+    title_tag = soup.find("title")
+    if title_tag:
+        title_text = collapse_whitespace(title_tag.get_text(" ", strip=True))
+        if title_text:
+            parts.append(f"PAGE TITLE: {title_text}")
+
+    meta_desc = soup.find("meta", attrs={"name": "description"})
+    if meta_desc and meta_desc.get("content"):
+        meta_text = collapse_whitespace(str(meta_desc["content"]))
+        if meta_text:
+            parts.append(f"META DESCRIPTION: {meta_text}")
+
+    body = soup.body or soup
+    body_text = body.get_text(separator="\n", strip=True)
+    body_text = collapse_whitespace(body_text)
+
+    if body_text:
+        parts.append("VISIBLE TEXT:")
+        parts.append(body_text)
+
+    return "\n\n".join(parts).strip()
+
+
+# =================================================================================
+# Bedrock helpers
+# =================================================================================
+
+
+def extract_job_fields_with_bedrock(visible_text):
+    """
+    Ask Bedrock to extract structured job fields from visible page text.
+
+    Expected output JSON:
+    - job_title
+    - company_name
+    - job_text
+    """
+    prompt = f"""
+You are extracting structured job posting data.
+
+Return valid JSON only.
+
+Required JSON fields:
+- job_title
+- company_name
+- job_text
+
+Rules:
+- job_title: best extracted job title, or empty string if unknown
+- company_name: best extracted company name, or empty string if unknown
+- job_text: cleaned plain-text job description
+- Do not wrap the response in markdown
+- Do not include any explanation
+
+SOURCE TEXT:
+{visible_text[:MAX_SOURCE_TEXT_CHARS]}
+""".strip()
+
+    body = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 4000,
+        "temperature": 0,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt,
+                    }
+                ],
+            }
+        ],
+    }
+
+    response = bedrock_runtime.invoke_model(
+        modelId=os.environ["BEDROCK_MODEL_ID"],
+        body=json.dumps(body),
+        contentType="application/json",
+        accept="application/json",
+    )
+
+    payload = json.loads(response["body"].read())
+    text = payload["content"][0]["text"].strip()
+    text = strip_code_fences(text)
+
+    return json.loads(text)
+
+
+# =================================================================================
+# S3 helpers
+# =================================================================================
+
+
+def put_job_description_to_s3(user_id, job_id, job_text):
+    """
+    Store the extracted job description in the backend bucket.
+
+    Object layout:
+      users/USER#<user_id>/jobs/JOB#<job_id>/job_description.txt
+    """
+    bucket = os.environ["BACKEND_BUCKET"]
+    key = f"users/USER#{user_id}/jobs/JOB#{job_id}/job_description.txt"
+
+    s3.put_object(
+        Bucket=bucket,
+        Key=key,
+        Body=job_text.encode("utf-8"),
+        ContentType="text/plain; charset=utf-8",
+    )
+
+    return key
+
+
+# =================================================================================
+# Core worker logic
+# =================================================================================
+
+
+def process_job_message(message):
+    """
+    Process one SQS message for V1 job ingestion.
+    """
+    user_id = message.get("user_id")
+    job_id = message.get("job_id")
+
+    if not user_id or not job_id:
+        logger.error(
+            "Message missing required fields. user_id=%s job_id=%s message=%s",
+            user_id,
+            job_id,
+            message,
+        )
+        return
+
+    update_job_status(
+        user_id=user_id,
+        job_id=job_id,
+        status="Scoring",
+        status_message="Started job scoring",
+    )
+
+    job_type = str(message.get("job_type", "")).strip()
+    job_value = str(message.get("job_value", "")).strip()
+
+    logger.info(
+        "Processing job. user_id=%s job_id=%s job_type=%s",
+        user_id,
+        job_id,
+        job_type,
+    )
+
+    if job_type != "url":
+        logger.info(
+            "Skipping non-url job for now. user_id=%s job_id=%s job_type=%s",
+            user_id,
+            job_id,
+            job_type,
+        )
+        return
+
+    if not job_value:
+        logger.error(
+            "Missing job URL. user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message="Job URL is missing",
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Retrieve HTML from the URL
+    # -----------------------------------------------------------------------------
+
+    try:
+        html = fetch_url_html(job_value)
+        logger.info(
+            "Retrieved job URL successfully. user_id=%s job_id=%s bytes=%s",
+            user_id,
+            job_id,
+            len(html),
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to retrieve job URL. user_id=%s job_id=%s url=%s",
+            user_id,
+            job_id,
+            job_value,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to retrieve job URL: {exc}"
+            ),
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Convert HTML to visible text
+    # -----------------------------------------------------------------------------
+
+    try:
+        visible_text = extract_visible_text(html)
+
+        if not visible_text:
+            update_job_status(
+                user_id=user_id,
+                job_id=job_id,
+                status="Error",
+                status_message="No visible job text extracted from URL",
+            )
+            return
+
+        logger.info(
+            "Extracted visible text successfully. user_id=%s job_id=%s "
+            "chars=%s",
+            user_id,
+            job_id,
+            len(visible_text),
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to extract visible text. user_id=%s job_id=%s url=%s",
+            user_id,
+            job_id,
+            job_value,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to extract visible text: {exc}"
+            ),
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Extract structured fields with Bedrock
+    # -----------------------------------------------------------------------------
+
+    try:
+        extracted = extract_job_fields_with_bedrock(visible_text)
+
+        logger.info(
+            "Bedrock extraction completed. user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+
+        if not isinstance(extracted, dict):
+            update_job_status(
+                user_id=user_id,
+                job_id=job_id,
+                status="Error",
+                status_message="Bedrock returned an invalid response",
+            )
+            return
+
+        job_title = str(extracted.get("job_title", "")).strip()
+        company_name = str(extracted.get("company_name", "")).strip()
+        job_text = str(extracted.get("job_text", "")).strip()
+
+        logger.info(
+            "Extracted fields. user_id=%s job_id=%s title_len=%s "
+            "company_len=%s job_text_len=%s",
+            user_id,
+            job_id,
+            len(job_title),
+            len(company_name),
+            len(job_text),
+        )
+
+        if not job_text:
+            update_job_status(
+                user_id=user_id,
+                job_id=job_id,
+                status="Error",
+                status_message="Bedrock did not return job text",
+            )
+            return
+
+        if len(job_text) < MIN_JOB_TEXT_CHARS:
+            update_job_status(
+                user_id=user_id,
+                job_id=job_id,
+                status="Error",
+                status_message="Extracted job description is too short",
+            )
+            return
+
+    except Exception as exc:
+        logger.exception(
+            "Failed to extract job fields. user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to extract job fields: {exc}"
+            ),
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Store job description in S3
+    # -----------------------------------------------------------------------------
+
+    try:
+        job_description_s3_key = put_job_description_to_s3(
+            user_id=user_id,
+            job_id=job_id,
+            job_text=job_text,
+        )
+
+        logger.info(
+            "Stored job description in S3. user_id=%s job_id=%s key=%s",
+            user_id,
+            job_id,
+            job_description_s3_key,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to store job description. user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to store job description: {exc}"
+            ),
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Save extracted metadata to DynamoDB
+    # -----------------------------------------------------------------------------
+
+    try:
+        update_job_extracted_fields(
+            user_id=user_id,
+            job_id=job_id,
+            job_title=job_title,
+            company_name=company_name,
+            job_description_s3_key=job_description_s3_key,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to update job metadata. user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to update job metadata: {exc}"
+            ),
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Mark job as complete for V1
+    # -----------------------------------------------------------------------------
+
+    update_job_status(
+        user_id=user_id,
+        job_id=job_id,
+        status="Scored",
+        status_message="",
+    )
+
+    logger.info(
+        "Job processed successfully. user_id=%s job_id=%s",
+        user_id,
+        job_id,
+    )
+
+
+# =================================================================================
+# Lambda entry point
+# =================================================================================
+
+
+def lambda_handler(event, context):
+    """
+    SQS-triggered Lambda entry point.
+
+    Each record is processed independently so one bad message does not stop the
+    rest of the batch from being attempted.
+    """
+    for record in event.get("Records", []):
+        try:
+            message = json.loads(record["body"])
+            logger.info("Received message: %s", message)
+            process_job_message(message)
+        except Exception:
+            logger.exception("Unhandled error while processing SQS record")
+
+    return {
+        "statusCode": 200,
+    }
