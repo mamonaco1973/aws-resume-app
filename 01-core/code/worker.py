@@ -5,7 +5,7 @@
 # V1 flow
 # 1) Read SQS message
 # 2) Set job status = Scoring
-# 3) If job_type == url, retrieve HTML from job URL
+# 3) If source_type == url, retrieve HTML from job URL
 # 4) Strip irrelevant HTML and extract visible text
 # 5) Call Bedrock to extract:
 #    - job_title
@@ -14,6 +14,15 @@
 # 6) Store job_text in S3
 # 7) Update DynamoDB with extracted fields
 # 8) Set job status = Scored
+#
+# Expected SQS message body
+# {
+#   "user_id": "<user_id>",
+#   "job_id": "<job_id>",
+#   "resume_id": "<resume_id>",
+#   "source_type": "url" | "raw_text",
+#   "job_url": "<url or empty>"
+# }
 # =================================================================================
 
 import json
@@ -42,6 +51,13 @@ table = dynamodb.Table(os.environ["TABLE_NAME"])
 
 bedrock_runtime = boto3.client("bedrock-runtime")
 s3 = boto3.client("s3")
+
+# =================================================================================
+# Environment
+# =================================================================================
+
+BACKEND_BUCKET = os.environ["BACKEND_BUCKET_NAME"]
+BEDROCK_MODEL_ID = os.environ["BEDROCK_MODEL_ID"]
 
 # =================================================================================
 # Constants
@@ -139,6 +155,21 @@ def strip_code_fences(text):
         lines = lines[:-1]
 
     return "\n".join(lines).strip()
+
+
+def build_job_description_key(user_id, job_id):
+    """
+    Return the canonical S3 key for a job description artifact.
+    """
+    return f"users/USER#{user_id}/jobs/JOB#{job_id}/job_description.txt"
+
+
+def read_s3_text(key):
+    """
+    Read a UTF-8 text object from S3.
+    """
+    result = s3.get_object(Bucket=BACKEND_BUCKET, Key=key)
+    return result["Body"].read().decode("utf-8")
 
 
 # =================================================================================
@@ -385,7 +416,7 @@ SOURCE TEXT:
     }
 
     response = bedrock_runtime.invoke_model(
-        modelId=os.environ["BEDROCK_MODEL_ID"],
+        modelId=BEDROCK_MODEL_ID,
         body=json.dumps(body),
         contentType="application/json",
         accept="application/json",
@@ -410,11 +441,10 @@ def put_job_description_to_s3(user_id, job_id, job_text):
     Object layout:
       users/USER#<user_id>/jobs/JOB#<job_id>/job_description.txt
     """
-    bucket = os.environ["BACKEND_BUCKET"]
-    key = f"users/USER#{user_id}/jobs/JOB#{job_id}/job_description.txt"
+    key = build_job_description_key(user_id, job_id)
 
     s3.put_object(
-        Bucket=bucket,
+        Bucket=BACKEND_BUCKET,
         Key=key,
         Body=job_text.encode("utf-8"),
         ContentType="text/plain; charset=utf-8",
@@ -428,49 +458,11 @@ def put_job_description_to_s3(user_id, job_id, job_text):
 # =================================================================================
 
 
-def process_job_message(message):
+def process_url_job(user_id, job_id, job_url):
     """
-    Process one SQS message for V1 job ingestion.
+    Process a URL-based job by retrieving the page and extracting job fields.
     """
-    user_id = message.get("user_id")
-    job_id = message.get("job_id")
-
-    if not user_id or not job_id:
-        logger.error(
-            "Message missing required fields. user_id=%s job_id=%s message=%s",
-            user_id,
-            job_id,
-            message,
-        )
-        return
-
-    update_job_status(
-        user_id=user_id,
-        job_id=job_id,
-        status="Scoring",
-        status_message="Started job scoring",
-    )
-
-    job_type = str(message.get("job_type", "")).strip()
-    job_value = str(message.get("job_value", "")).strip()
-
-    logger.info(
-        "Processing job. user_id=%s job_id=%s job_type=%s",
-        user_id,
-        job_id,
-        job_type,
-    )
-
-    if job_type != "url":
-        logger.info(
-            "Skipping non-url job for now. user_id=%s job_id=%s job_type=%s",
-            user_id,
-            job_id,
-            job_type,
-        )
-        return
-
-    if not job_value:
+    if not job_url:
         logger.error(
             "Missing job URL. user_id=%s job_id=%s",
             user_id,
@@ -489,7 +481,7 @@ def process_job_message(message):
     # -----------------------------------------------------------------------------
 
     try:
-        html = fetch_url_html(job_value)
+        html = fetch_url_html(job_url)
         logger.info(
             "Retrieved job URL successfully. user_id=%s job_id=%s bytes=%s",
             user_id,
@@ -501,7 +493,7 @@ def process_job_message(message):
             "Failed to retrieve job URL. user_id=%s job_id=%s url=%s",
             user_id,
             job_id,
-            job_value,
+            job_url,
         )
         update_job_status(
             user_id=user_id,
@@ -541,7 +533,7 @@ def process_job_message(message):
             "Failed to extract visible text. user_id=%s job_id=%s url=%s",
             user_id,
             job_id,
-            job_value,
+            job_url,
         )
         update_job_status(
             user_id=user_id,
@@ -699,6 +691,242 @@ def process_job_message(message):
         "Job processed successfully. user_id=%s job_id=%s",
         user_id,
         job_id,
+    )
+
+
+def process_raw_text_job(user_id, job_id):
+    """
+    Process a raw-text job by reading the previously stored S3 artifact and
+    extracting metadata from it with Bedrock.
+    """
+    job_description_key = build_job_description_key(user_id, job_id)
+
+    # -----------------------------------------------------------------------------
+    # Read stored raw-text job description from S3
+    # -----------------------------------------------------------------------------
+
+    try:
+        job_text = read_s3_text(job_description_key).strip()
+        logger.info(
+            "Read raw-text job description from S3. user_id=%s job_id=%s "
+            "chars=%s",
+            user_id,
+            job_id,
+            len(job_text),
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to read raw-text job description. user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to read stored job description: {exc}"
+            ),
+        )
+        return
+
+    if not job_text:
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message="Stored job description is empty",
+        )
+        return
+
+    if len(job_text) < MIN_JOB_TEXT_CHARS:
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message="Stored job description is too short",
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Extract title and company using Bedrock from the stored text
+    # -----------------------------------------------------------------------------
+
+    try:
+        extracted = extract_job_fields_with_bedrock(job_text)
+
+        logger.info(
+            "Bedrock extraction completed for raw-text job. user_id=%s "
+            "job_id=%s",
+            user_id,
+            job_id,
+        )
+
+        if not isinstance(extracted, dict):
+            update_job_status(
+                user_id=user_id,
+                job_id=job_id,
+                status="Error",
+                status_message="Bedrock returned an invalid response",
+            )
+            return
+
+        job_title = str(extracted.get("job_title", "")).strip()
+        company_name = str(extracted.get("company_name", "")).strip()
+        extracted_job_text = str(extracted.get("job_text", "")).strip()
+
+        # Preserve the original stored job text if the model returns blank or
+        # something shorter / worse than what was provided.
+        if extracted_job_text and len(extracted_job_text) >= MIN_JOB_TEXT_CHARS:
+            job_text = extracted_job_text
+
+    except Exception as exc:
+        logger.exception(
+            "Failed to extract raw-text job fields. user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to extract job fields: {exc}"
+            ),
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Re-write the canonical job description artifact
+    # -----------------------------------------------------------------------------
+
+    try:
+        job_description_s3_key = put_job_description_to_s3(
+            user_id=user_id,
+            job_id=job_id,
+            job_text=job_text,
+        )
+
+        logger.info(
+            "Stored normalized raw-text job description. user_id=%s job_id=%s "
+            "key=%s",
+            user_id,
+            job_id,
+            job_description_s3_key,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to store normalized raw-text job description. user_id=%s "
+            "job_id=%s",
+            user_id,
+            job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to store job description: {exc}"
+            ),
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Save extracted metadata to DynamoDB
+    # -----------------------------------------------------------------------------
+
+    try:
+        update_job_extracted_fields(
+            user_id=user_id,
+            job_id=job_id,
+            job_title=job_title,
+            company_name=company_name,
+            job_description_s3_key=job_description_s3_key,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to update raw-text job metadata. user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to update job metadata: {exc}"
+            ),
+        )
+        return
+
+    update_job_status(
+        user_id=user_id,
+        job_id=job_id,
+        status="Scored",
+        status_message="",
+    )
+
+    logger.info(
+        "Raw-text job processed successfully. user_id=%s job_id=%s",
+        user_id,
+        job_id,
+    )
+
+
+def process_job_message(message):
+    """
+    Process one SQS message for V1 job ingestion.
+    """
+    user_id = str(message.get("user_id", "")).strip()
+    job_id = str(message.get("job_id", "")).strip()
+    resume_id = str(message.get("resume_id", "")).strip()
+    source_type = str(message.get("source_type", "")).strip()
+    job_url = str(message.get("job_url", "")).strip()
+
+    if not user_id or not job_id:
+        logger.error(
+            "Message missing required fields. user_id=%s job_id=%s message=%s",
+            user_id,
+            job_id,
+            message,
+        )
+        return
+
+    update_job_status(
+        user_id=user_id,
+        job_id=job_id,
+        status="Scoring",
+        status_message="Started job scoring",
+    )
+
+    logger.info(
+        "Processing job. user_id=%s job_id=%s resume_id=%s source_type=%s",
+        user_id,
+        job_id,
+        resume_id,
+        source_type,
+    )
+
+    if source_type == "url":
+        process_url_job(user_id=user_id, job_id=job_id, job_url=job_url)
+        return
+
+    if source_type == "raw_text":
+        process_raw_text_job(user_id=user_id, job_id=job_id)
+        return
+
+    logger.error(
+        "Unsupported source_type. user_id=%s job_id=%s source_type=%s",
+        user_id,
+        job_id,
+        source_type,
+    )
+
+    update_job_status(
+        user_id=user_id,
+        job_id=job_id,
+        status="Error",
+        status_message=f"Unsupported source_type: {source_type}",
     )
 
 

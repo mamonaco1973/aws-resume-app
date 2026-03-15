@@ -61,6 +61,7 @@ resource "aws_lambda_function" "worker" {
       TABLE_NAME          = aws_dynamodb_table.app_table.name
       BACKEND_BUCKET_NAME = aws_s3_bucket.backend.bucket
       JOB_QUEUE_URL       = aws_sqs_queue.job_requests.id
+      BEDROCK_MODEL_ID    = var.bedrock_model_id
     }
   }
 }

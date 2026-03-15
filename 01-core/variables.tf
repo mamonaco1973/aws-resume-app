@@ -29,3 +29,14 @@ variable "region" {
   type        = string
   default     = "us-east-1"
 }
+
+# ================================================================================
+# Bedrock model configuration
+# ================================================================================
+
+variable "bedrock_model_id" {
+  description = "Bedrock model ID used by worker Lambda for job extraction"
+  type        = string
+  default     = "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+}
+
