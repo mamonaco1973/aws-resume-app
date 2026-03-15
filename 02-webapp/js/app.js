@@ -242,8 +242,15 @@ function validateNewJobForm() {
   const linkedinRaw =
     document.getElementById("linkedin-job-ids")?.value.trim() || "";
 
+  const resumeSelect = document.getElementById("resume-select");
+  const hasAvailableResumes = Array.from(resumeSelect?.options || []).some((option) => option.value.trim() !== "");
+
   if (!resumeId) {
-    errors.resume = "You must select a resume.";
+    if (hasAvailableResumes) {
+      errors.resume = "You must select a resume.";
+    } else {
+    errors.resume = "Please add a resume with Manage Resumes.";
+    }
   }
 
   if (sourceType === "url") {
