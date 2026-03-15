@@ -8,7 +8,7 @@ resource "aws_apigatewayv2_api" "api" {
 
   cors_configuration {
     allow_origins = [
-      "https://${aws_s3_bucket.frontend.bucket}.s3.${data.aws_region.current.region}.amazonaws.com"
+      "https://${aws_s3_bucket.frontend.bucket}.s3.${data.aws_region.current.name}.amazonaws.com"
     ]
 
     allow_methods = [
@@ -20,9 +20,38 @@ resource "aws_apigatewayv2_api" "api" {
       "OPTIONS"
     ]
 
-    allow_headers = ["*"]
+    allow_headers = [
+      "*"
+    ]
 
     max_age = 300
+  }
+}
+
+# ================================================================================
+# Cognito JWT authorizer
+# ================================================================================
+
+resource "aws_apigatewayv2_authorizer" "cognito" {
+  api_id          = aws_apigatewayv2_api.api.id
+  name            = "resume-cognito-jwt"
+  authorizer_type = "JWT"
+
+  identity_sources = [
+    "$request.header.Authorization"
+  ]
+
+  jwt_configuration {
+    audience = [
+      aws_cognito_user_pool_client.resume_app.id
+    ]
+
+    issuer = join("", [
+      "https://cognito-idp.",
+      data.aws_region.current.name,
+      ".amazonaws.com/",
+      aws_cognito_user_pool.resume_app.id
+    ])
   }
 }
 
@@ -43,63 +72,83 @@ resource "aws_apigatewayv2_integration" "lambda" {
 # ================================================================================
 
 resource "aws_apigatewayv2_route" "get_jobs" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "GET /jobs"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /jobs"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "create_job" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "POST /jobs"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /jobs"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "get_job" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "GET /jobs/{job_id}"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /jobs/{job_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "update_job_notes" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "PATCH /jobs/{job_id}/notes"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "PATCH /jobs/{job_id}/notes"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "get_resumes" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "GET /resumes"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /resumes"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "create_resume" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "POST /resumes"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /resumes"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "get_resume" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "GET /resumes/{resume_id}"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /resumes/{resume_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "update_resume" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "PUT /resumes/{resume_id}"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "PUT /resumes/{resume_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "delete_resume" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "DELETE /resumes/{resume_id}"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "DELETE /resumes/{resume_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_apigatewayv2_route" "delete_job" {
-  api_id    = aws_apigatewayv2_api.api.id
-  route_key = "DELETE /jobs/{job_id}"
-  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "DELETE /jobs/{job_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
 }
 
 # ================================================================================
