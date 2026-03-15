@@ -81,5 +81,5 @@ output "frontend_bucket_name" {
 
 output "frontend_website_url" {
   description = "Public S3 website endpoint for the web application"
-  value       = aws_s3_bucket_website_configuration.frontend.website_endpoint
+  value       = "https://${aws_s3_bucket.frontend.bucket}.s3.${var.region}.amazonaws.com"
 }
