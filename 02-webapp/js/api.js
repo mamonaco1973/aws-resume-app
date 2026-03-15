@@ -1,4 +1,5 @@
 import { CONFIG } from "./config.js";
+import { getIdToken } from "./auth.js";
 
 const API_BASE_URL = CONFIG.API_BASE_URL;
 
@@ -7,9 +8,12 @@ const API_BASE_URL = CONFIG.API_BASE_URL;
 // -----------------------------------------------------------------------------
 
 async function apiRequest(path, options = {}) {
+  const token = getIdToken();
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {})
     },
     ...options

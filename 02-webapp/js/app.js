@@ -1,6 +1,7 @@
 import { createJob, listResumes } from "./api.js";
 import { loadJobs } from "./jobs.js";
 import { bindResumeHandlers, openResumeManager } from "./resumes.js";
+import { getLoginUrl } from "./auth.js";
 
 let lastSelectedResumeId = "";
 
@@ -23,11 +24,12 @@ function bindUiHandlers() {
   const btnNewJob = document.getElementById("btn-new-job");
   const btnManageResumes = document.getElementById("btn-manage-resumes");
   const cancelNewJob = document.getElementById("cancel-new-job");
+  const btnSignIn = document.getElementById("btn-sign-in");
 
   const sourceType = document.getElementById("source-type");
   const resumeSelect = document.getElementById("resume-select");
   const newJobForm = document.getElementById("new-job-form");
-
+  
   // ---------------------------------------------------------------------------
   // Track last selected resume
   // ---------------------------------------------------------------------------
@@ -120,6 +122,14 @@ document
 });
 
   document.getElementById("btn-refresh")?.addEventListener("click", refreshApp);
+
+  // ---------------------------------------------------------------------------
+  // Sign in
+  // ---------------------------------------------------------------------------
+
+  btnSignIn?.addEventListener("click", () => {
+    window.location.href = getLoginUrl();
+  });
 
 
 }
