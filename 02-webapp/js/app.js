@@ -451,13 +451,15 @@ function updateAuthButtons() {
 }
 
 function showNotLoggedInMessage() {
-  const container = document.getElementById("jobs-container");
+  const table = document.getElementById("jobs-table");
+  const emptyState = document.getElementById("empty-state");
 
-  if (container) {
-    container.innerHTML = `
-      <div class="empty-state">
-        Please sign in to use the application.
-      </div>
+  table?.classList.add("hidden");
+
+  if (emptyState) {
+    emptyState.classList.remove("hidden");
+    emptyState.innerHTML = `
+      <p>Please sign in to use the application.</p>
     `;
   }
 }
