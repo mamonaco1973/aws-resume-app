@@ -94,3 +94,39 @@ resource "aws_iam_role_policy_attachment" "lambda_s3_attach" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = aws_iam_policy.lambda_s3.arn
 }
+
+# ================================================================================
+# SQS access policy
+# Allows Lambda functions to send and process job scoring messages
+# ================================================================================
+
+resource "aws_iam_policy" "lambda_sqs" {
+  name = "resume-app-sqs-${random_id.bucket_suffix.hex}"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "JobQueueAccess"
+        Effect = "Allow"
+        Action = [
+          "sqs:GetQueueAttributes",
+          "sqs:GetQueueUrl",
+          "sqs:SendMessage",
+          "sqs:ReceiveMessage",
+          "sqs:DeleteMessage",
+          "sqs:ChangeMessageVisibility"
+        ]
+        Resource = [
+          aws_sqs_queue.job_requests.arn,
+          aws_sqs_queue.job_requests_dlq.arn
+        ]
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lambda_sqs_attach" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = aws_iam_policy.lambda_sqs.arn
+}
