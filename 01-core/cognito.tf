@@ -95,5 +95,5 @@ output "cognito_domain" {
 }
 
 output "cognito_hosted_ui_base" {
-  value = "https://${aws_cognito_user_pool_domain.resume_app.domain}.auth.${data.aws_region.current.name}.amazoncognito.com"
+  value = "https://${aws_cognito_user_pool_domain.resume_app.domain}.auth.${data.aws_region.current.region}.amazoncognito.com"
 }
