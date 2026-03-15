@@ -6,4 +6,4 @@
 *.pem
 *.pub
 *.zip
-config.json
+config.js

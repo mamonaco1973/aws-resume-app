@@ -61,3 +61,25 @@ resource "aws_s3_bucket_policy" "frontend" {
     aws_s3_bucket_public_access_block.frontend
   ]
 }
+
+# =================================================================================
+# Outputs
+# =================================================================================
+
+# ---------------------------------------------------------------------------------
+# Frontend bucket name
+# ---------------------------------------------------------------------------------
+
+output "frontend_bucket_name" {
+  description = "Name of the S3 bucket hosting the web application"
+  value       = aws_s3_bucket.frontend.bucket
+}
+
+# ---------------------------------------------------------------------------------
+# Frontend website URL
+# ---------------------------------------------------------------------------------
+
+output "frontend_website_url" {
+  description = "Public S3 website endpoint for the web application"
+  value       = aws_s3_bucket_website_configuration.frontend.website_endpoint
+}
