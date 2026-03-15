@@ -26,6 +26,8 @@ function getJobIdFromUrl() {
 function renderJob(job) {
   setText("job-title", job.job_title || "—");
   setText("job-company", job.company || "—");
+  setText("job-status", job.status || "—");
+  setText("job-status-message", job.status_message || "—");
   setText("job-score", formatScore(job.score));
   setText("job-scored-at", formatDate(job.created_at));
   setText("job-source-type", job.source_type || "—");
