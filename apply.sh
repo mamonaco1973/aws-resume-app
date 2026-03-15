@@ -77,12 +77,14 @@ terraform apply -auto-approve
 export API_BASE_URL=$(terraform output -raw api_endpoint)
 export BUCKET_NAME=$(terraform output -raw frontend_bucket_name)
 export BUCKET_URL=$(terraform output -raw frontend_website_url)
+export COGNITO_DOMAIN=$(terraform output -raw cognito_hosted_ui_base)
+export COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
 
 cd .. || exit 1
 
-echo "NOTE: Bucket name is ${BUCKET_NAME}"
-echo "NOTE: API Gateway URL - ${API_BASE_URL}"
-echo "NOTE: Bucket URL - ${BUCKET_URL}"
+# echo "NOTE: Bucket name is ${BUCKET_NAME}"
+# echo "NOTE: API Gateway URL - ${API_BASE_URL}"
+# echo "NOTE: Bucket URL - ${BUCKET_URL}"
 
 # ------------------------------------------------------------------------------
 # DEPLOYING WEB CLIENT ARTIFACTS

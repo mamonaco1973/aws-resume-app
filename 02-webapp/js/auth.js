@@ -2,10 +2,10 @@
 // Cognito configuration
 // -----------------------------------------------------------------------------
 
-const COGNITO_DOMAIN =
-  "https://resume-app-auth-97ce8620.auth.us-east-1.amazoncognito.com";
+import { CONFIG } from "./config.js";
 
-const CLIENT_ID = "3ccmiult7clc2sham86e0dkdf3";
+const COGNITO_DOMAIN = CONFIG.COGNITO_DOMAIN;
+const CLIENT_ID = CONFIG.COGNITO_CLIENT_ID;
 
 const REDIRECT_URI = `${window.location.origin}/callback.html`;
 
