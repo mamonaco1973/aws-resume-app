@@ -173,7 +173,11 @@ function bindOpenHandlers() {
         return;
       }
 
-      window.location.href = `/job.html?id=${encodeURIComponent(jobId)}`;
+      window.open(
+        `/job.html?id=${encodeURIComponent(jobId)}`,
+        jobId,
+        "noopener"
+       );
     });
 
     button.dataset.bound = "true";
