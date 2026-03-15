@@ -26,6 +26,7 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 
 import boto3
 from boto3.dynamodb.conditions import Key
@@ -51,10 +52,30 @@ def utc_now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+def json_serializer(value):
+    """
+    Convert DynamoDB Decimal values into standard JSON numeric types.
+
+    Notes
+    - boto3 returns DynamoDB numbers as Decimal
+    - json.dumps() cannot serialize Decimal by default
+    - Whole numbers are returned as int
+    - Fractional numbers are returned as float
+    """
+
+    if isinstance(value, Decimal):
+        if value % 1 == 0:
+            return int(value)
+
+        return float(value)
+
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
+
+
 def response(code, body):
     return {
         "statusCode": code,
-        "body": json.dumps(body)
+        "body": json.dumps(body, default=json_serializer)
     }
 
 
