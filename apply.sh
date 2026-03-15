@@ -97,6 +97,7 @@ cd 02-webapp || {
 envsubst config.js.tmpl > config.js || {
   echo "ERROR: Failed to generate config.js."
   exit 1
+}
 
 #aws s3 cp . s3://${BUCKET_NAME} --recursive
 #echo "NOTE: Web application URL - $BUCKET_URL/index.html"
