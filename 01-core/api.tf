@@ -48,7 +48,7 @@ resource "aws_apigatewayv2_authorizer" "cognito" {
 
     issuer = join("", [
       "https://cognito-idp.",
-      data.aws_region.current.name,
+      data.aws_region.current.region,
       ".amazonaws.com/",
       aws_cognito_user_pool.resume_app.id
     ])
