@@ -76,7 +76,7 @@ terraform apply -auto-approve
 
 export API_BASE_URL=$(terraform output -raw api_endpoint)
 export BUCKET_NAME=$(terraform output -raw frontend_bucket_name)
-export BUCKET_URL=$(terraform output -raw frontend_website_url)
+export BUCKET_URL=https://$(terraform output -raw frontend_website_url)
 
 cd .. || exit 1
 
