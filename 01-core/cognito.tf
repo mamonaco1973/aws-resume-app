@@ -6,7 +6,7 @@ locals {
   spa_origin = format(
     "https://%s.s3.%s.amazonaws.com",
     aws_s3_bucket.frontend.bucket,
-    data.aws_region.current.name
+    data.aws_region.current.region
   )
 }
 
