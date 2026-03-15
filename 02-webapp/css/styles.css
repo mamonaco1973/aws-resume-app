@@ -355,3 +355,15 @@ tr:hover {
   font-size: 0.8rem;
   line-height: 1.5;
 }
+
+.open-job-btn {
+  background-color: #2f6edb;
+  color: white;
+  border: none;
+}
+
+.open-job-btn:hover {
+  background-color: #255bc0;
+}
+
+.row-actions { display: flex; gap: 8px; }
