@@ -175,8 +175,7 @@ function bindOpenHandlers() {
 
       window.open(
         `/job.html?id=${encodeURIComponent(jobId)}`,
-        jobId,
-        "noopener"
+        jobId
        );
     });
 
