@@ -22,7 +22,7 @@ echo "NOTE: Validating that required commands are found in your PATH."
 # List of CLI utilities required by the Quick Start deployment scripts.
 # ------------------------------------------------------------------------------
 
-commands=("aws" "terraform" "jq")
+commands=("aws" "terraform" "jq" "pip")
 
 # Flag used to track whether all required commands were located
 all_found=true
