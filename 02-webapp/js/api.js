@@ -6,7 +6,7 @@
 /* ========================================================================== */
 
 import { CONFIG } from "./config.js";
-import { getIdToken } from "./auth.js";
+import { getIdToken, refreshTokens, clearTokens } from "./auth.js";
 
 const API_BASE_URL = CONFIG.API_BASE_URL;
 
@@ -15,22 +15,43 @@ const API_BASE_URL = CONFIG.API_BASE_URL;
 // -----------------------------------------------------------------------------
 
 /* -------------------------------------------------------------------------- */
+/* Function: buildHeaders                                                      */
+/* Purpose: Construct Authorization + Content-Type headers for a request.    */
+/* -------------------------------------------------------------------------- */
+function buildHeaders(extraHeaders = {}) {
+  const token = getIdToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extraHeaders
+  };
+}
+
+/* -------------------------------------------------------------------------- */
 /* Function: apiRequest                                                        */
 /* Purpose: Send an authenticated fetch request to the backend API.           */
-/*          Merges the Bearer token header with any caller-supplied options.  */
-/*          Returns parsed JSON on success; throws on HTTP or parse errors.   */
+/*          On a 401, attempts a silent Cognito token refresh and retries     */
+/*          once. If the refresh fails, clears tokens and redirects to the    */
+/*          login page so the user is never silently stuck with an expired    */
+/*          session.                                                           */
 /* -------------------------------------------------------------------------- */
-async function apiRequest(path, options = {}) {
-  const token = getIdToken();
-
+async function apiRequest(path, options = {}, isRetry = false) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {})
-    },
-    ...options
+    ...options,
+    headers: buildHeaders(options.headers || {})
   });
+
+  // On 401, try a silent token refresh then replay the request once.
+  if (response.status === 401 && !isRetry) {
+    const refreshed = await refreshTokens();
+    if (refreshed) {
+      return apiRequest(path, options, true);
+    }
+    // Refresh token is expired or missing — force re-login.
+    clearTokens();
+    window.location.href = window.location.origin + "/index.html";
+    return;
+  }
 
   let data = null;
 
