@@ -241,6 +241,29 @@ def update_job_status(user_id, job_id, status, status_message):
     )
 
 
+def update_job_title_and_company(user_id, job_id, job_title, company_name):
+    """
+    Write job_title and company as soon as extraction completes so they
+    appear in the UI without waiting for scoring to finish.
+    """
+    table.update_item(
+        Key={
+            "pk": f"USER#{user_id}",
+            "sk": f"JOB#{job_id}",
+        },
+        UpdateExpression=(
+            "SET job_title = :job_title, "
+            "company = :company, "
+            "updated_at = :updated_at"
+        ),
+        ExpressionAttributeValues={
+            ":job_title": job_title,
+            ":company": company_name,
+            ":updated_at": utc_now(),
+        },
+    )
+
+
 def update_job_extracted_fields(
     user_id,
     job_id,
@@ -511,10 +534,10 @@ Required JSON fields:
 
 Rules:
 - score: integer from 0 to 100
-- summary: plain-text analysis with exactly three labeled paragraphs in
-  this order: "Overview:" (2-3 sentences on overall fit), "Strengths:"
-  (2-3 sentences on resume positives relative to the job), "Weaknesses:"
-  (2-3 sentences on gaps or missing qualifications)
+- summary: plain-text analysis with exactly two labeled paragraphs in
+  this order: "Strengths:" (2-3 sentences on resume positives relative
+  to the job), "Weaknesses:" (2-3 sentences on gaps or missing
+  qualifications)
 - Do not wrap the response in markdown
 - Do not include any explanation outside the JSON
 
@@ -848,6 +871,18 @@ def process_url_job(user_id, job_id, job_url):
         return
 
     # -----------------------------------------------------------------------------
+    # Write title and company to DynamoDB immediately so they show in the UI
+    # while scoring is still in progress
+    # -----------------------------------------------------------------------------
+
+    update_job_title_and_company(
+        user_id=user_id,
+        job_id=job_id,
+        job_title=job_title,
+        company_name=company_name,
+    )
+
+    # -----------------------------------------------------------------------------
     # Persist extracted job description to S3
     # -----------------------------------------------------------------------------
 
@@ -1036,6 +1071,18 @@ def process_raw_text_job(user_id, job_id):
             ),
         )
         return
+
+    # -----------------------------------------------------------------------------
+    # Write title and company to DynamoDB immediately so they show in the UI
+    # while scoring is still in progress
+    # -----------------------------------------------------------------------------
+
+    update_job_title_and_company(
+        user_id=user_id,
+        job_id=job_id,
+        job_title=job_title,
+        company_name=company_name,
+    )
 
     # -----------------------------------------------------------------------------
     # Re-write the canonical job description artifact with the cleaned text
