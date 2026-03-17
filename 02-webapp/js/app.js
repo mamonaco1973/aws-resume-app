@@ -469,15 +469,9 @@ async function refreshApp() {
 
   const refreshButton = document.getElementById("btn-refresh");
   const table = document.getElementById("jobs-table");
-  const indicator = document.getElementById("auto-refresh-indicator");
-  const text = document.getElementById("auto-refresh-text");
-  const spinner = indicator?.querySelector(".spinner");
 
   try {
     if (refreshButton) refreshButton.disabled = true;
-    spinner?.classList.remove("hidden");
-    if (text) text.textContent = "Loading...";
-    indicator?.classList.remove("hidden");
     table?.classList.add("loading");
 
     await loadJobs();
