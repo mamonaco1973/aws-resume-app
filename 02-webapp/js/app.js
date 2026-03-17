@@ -420,11 +420,16 @@ function scheduleAutoRefresh() {
     autoRefreshTimer = null;
   }
 
+  const indicator = document.getElementById("auto-refresh-indicator");
+
   if (hasPendingJobs()) {
+    indicator?.classList.remove("hidden");
     autoRefreshTimer = setTimeout(() => {
       autoRefreshTimer = null;
       refreshApp();
     }, 15000);
+  } else {
+    indicator?.classList.add("hidden");
   }
 }
 
