@@ -412,24 +412,28 @@ def extract_visible_text(html):
 
 def extract_job_fields_with_bedrock(visible_text):
     """
-    Ask Bedrock to extract job title and company name from visible page text.
+    Ask Bedrock to extract structured job fields from visible page text.
 
     Expected output JSON:
     - job_title
     - company_name
+    - job_text
     """
     prompt = f"""
-You are extracting metadata from a job posting.
+You are extracting structured data from a job posting.
 
 Return valid JSON only.
 
 Required JSON fields:
 - job_title
 - company_name
+- job_text
 
 Rules:
 - job_title: best extracted job title, or empty string if unknown
 - company_name: best extracted company name, or empty string if unknown
+- job_text: plain-text job description, maximum 400 words, include only
+  role responsibilities and candidate requirements
 - Do not wrap the response in markdown
 - Do not include any explanation
 
@@ -439,7 +443,7 @@ SOURCE TEXT:
 
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 200,
+        "max_tokens": 800,
         "temperature": 0,
         "messages": [
             {
@@ -797,15 +801,35 @@ def process_url_job(user_id, job_id, job_url):
 
         job_title = str(extracted.get("job_title", "")).strip()
         company_name = str(extracted.get("company_name", "")).strip()
+        job_text = str(extracted.get("job_text", "")).strip()
 
         logger.info(
             "Extracted fields. user_id=%s job_id=%s title_len=%s "
-            "company_len=%s",
+            "company_len=%s job_text_len=%s",
             user_id,
             job_id,
             len(job_title),
             len(company_name),
+            len(job_text),
         )
+
+        if not job_text:
+            update_job_status(
+                user_id=user_id,
+                job_id=job_id,
+                status="Error",
+                status_message="Bedrock did not return job text",
+            )
+            return
+
+        if len(job_text) < MIN_JOB_TEXT_CHARS:
+            update_job_status(
+                user_id=user_id,
+                job_id=job_id,
+                status="Error",
+                status_message="Extracted job description is too short",
+            )
+            return
 
     except Exception as exc:
         logger.exception(
@@ -824,15 +848,14 @@ def process_url_job(user_id, job_id, job_url):
         return
 
     # -----------------------------------------------------------------------------
-    # Persist visible text directly to S3 as the job description.
-    # No need to ask Bedrock to re-generate it — we already have the text.
+    # Persist extracted job description to S3
     # -----------------------------------------------------------------------------
 
     try:
         job_description_s3_key = put_job_description_to_s3(
             user_id=user_id,
             job_id=job_id,
-            job_text=visible_text,
+            job_text=job_text,
         )
 
         logger.info(
@@ -990,6 +1013,13 @@ def process_raw_text_job(user_id, job_id):
 
         job_title = str(extracted.get("job_title", "")).strip()
         company_name = str(extracted.get("company_name", "")).strip()
+        extracted_job_text = str(extracted.get("job_text", "")).strip()
+
+        # Prefer the Bedrock-cleaned text if it meets the minimum length.
+        # Fall back to the original stored text if the model returns blank
+        # or something shorter than what was supplied.
+        if extracted_job_text and len(extracted_job_text) >= MIN_JOB_TEXT_CHARS:
+            job_text = extracted_job_text
 
     except Exception as exc:
         logger.exception(
@@ -1008,10 +1038,39 @@ def process_raw_text_job(user_id, job_id):
         return
 
     # -----------------------------------------------------------------------------
-    # Job description is already stored in S3 from create_job — no rewrite needed.
+    # Re-write the canonical job description artifact with the cleaned text
     # -----------------------------------------------------------------------------
 
-    job_description_s3_key = job_description_key
+    try:
+        job_description_s3_key = put_job_description_to_s3(
+            user_id=user_id,
+            job_id=job_id,
+            job_text=job_text,
+        )
+
+        logger.info(
+            "Stored normalized raw-text job description. user_id=%s job_id=%s "
+            "key=%s",
+            user_id,
+            job_id,
+            job_description_s3_key,
+        )
+    except Exception as exc:
+        logger.exception(
+            "Failed to store normalized raw-text job description. "
+            "user_id=%s job_id=%s",
+            user_id,
+            job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message=safe_status_message(
+                f"Failed to store job description: {exc}"
+            ),
+        )
+        return
 
     # -----------------------------------------------------------------------------
     # Score the stored resume snapshot against the normalized job description and
