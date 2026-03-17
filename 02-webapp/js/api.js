@@ -1,3 +1,10 @@
+/* ========================================================================== */
+/* api.js                                                                      */
+/* HTTP client for the Resume Scorer backend API.                              */
+/* Attaches the Cognito id_token as a Bearer header on every request.         */
+/* Throws on non-2xx responses using the server-supplied error message.       */
+/* ========================================================================== */
+
 import { CONFIG } from "./config.js";
 import { getIdToken } from "./auth.js";
 
@@ -7,6 +14,12 @@ const API_BASE_URL = CONFIG.API_BASE_URL;
 // Common request helper
 // -----------------------------------------------------------------------------
 
+/* -------------------------------------------------------------------------- */
+/* Function: apiRequest                                                        */
+/* Purpose: Send an authenticated fetch request to the backend API.           */
+/*          Merges the Bearer token header with any caller-supplied options.  */
+/*          Returns parsed JSON on success; throws on HTTP or parse errors.   */
+/* -------------------------------------------------------------------------- */
 async function apiRequest(path, options = {}) {
   const token = getIdToken();
 

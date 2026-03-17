@@ -48,6 +48,16 @@ JOB_QUEUE_URL = os.environ["JOB_QUEUE_URL"]
 # Common helpers
 # ------------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------------
+# Function: utc_now
+#
+# Purpose
+# Returns the current UTC timestamp in ISO 8601 format, truncated to
+# second precision.
+#
+# Returns
+# - ISO 8601 timestamp string (no microseconds)
+# --------------------------------------------------------------------------------
 def utc_now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
@@ -72,6 +82,20 @@ def json_serializer(value):
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
+# --------------------------------------------------------------------------------
+# Function: response
+#
+# Purpose
+# Builds a standard API Gateway response dict. Uses json_serializer to
+# handle DynamoDB Decimal values in the response body.
+#
+# Arguments
+# - code : HTTP status code integer
+# - body : Python object to serialize as the JSON response body
+#
+# Returns
+# - dict with statusCode and body keys
+# --------------------------------------------------------------------------------
 def response(code, body):
     return {
         "statusCode": code,
@@ -79,6 +103,19 @@ def response(code, body):
     }
 
 
+# --------------------------------------------------------------------------------
+# Function: get_user_id
+#
+# Purpose
+# Extracts the authenticated user ID from the Cognito JWT claims on
+# the API Gateway event.
+#
+# Arguments
+# - event : API Gateway Lambda event dict
+#
+# Returns
+# - cognito:username, sub, or "demo" as fallback
+# --------------------------------------------------------------------------------
 def get_user_id(event):
     claims = (
         event.get("requestContext", {})
@@ -90,11 +127,36 @@ def get_user_id(event):
     return claims.get("cognito:username") or claims.get("sub") or "demo"
 
 
+# --------------------------------------------------------------------------------
+# Function: get_job_id
+#
+# Purpose
+# Extracts the job_id path parameter from the API Gateway event.
+#
+# Arguments
+# - event : API Gateway Lambda event dict
+#
+# Returns
+# - job_id string or None if not present
+# --------------------------------------------------------------------------------
 def get_job_id(event):
     path = event.get("pathParameters") or {}
     return path.get("job_id")
 
 
+# --------------------------------------------------------------------------------
+# Function: build_job_paths
+#
+# Purpose
+# Derives DynamoDB keys and all S3 object paths for a given user/job pair.
+#
+# Arguments
+# - user_id : authenticated user identifier
+# - job_id  : UUID of the job record
+#
+# Returns
+# - dict with pk, sk, base path, and per-artifact S3 keys
+# --------------------------------------------------------------------------------
 def build_job_paths(user_id, job_id):
 
     pk = f"USER#{user_id}"
@@ -113,6 +175,19 @@ def build_job_paths(user_id, job_id):
     }
 
 
+# --------------------------------------------------------------------------------
+# Function: get_resume_item
+#
+# Purpose
+# Fetches a resume record from DynamoDB for the given user.
+#
+# Arguments
+# - user_id   : authenticated user identifier
+# - resume_id : UUID of the resume record
+#
+# Returns
+# - DynamoDB item dict or None if not found
+# --------------------------------------------------------------------------------
 def get_resume_item(user_id, resume_id):
 
     pk = f"USER#{user_id}"
@@ -128,6 +203,19 @@ def get_resume_item(user_id, resume_id):
     return result.get("Item")
 
 
+# --------------------------------------------------------------------------------
+# Function: get_job_item
+#
+# Purpose
+# Fetches a job record from DynamoDB for the given user.
+#
+# Arguments
+# - user_id : authenticated user identifier
+# - job_id  : UUID of the job record
+#
+# Returns
+# - DynamoDB item dict or None if not found
+# --------------------------------------------------------------------------------
 def get_job_item(user_id, job_id):
 
     pk = f"USER#{user_id}"
@@ -143,6 +231,16 @@ def get_job_item(user_id, job_id):
     return result.get("Item")
 
 
+# --------------------------------------------------------------------------------
+# Function: write_s3_text
+#
+# Purpose
+# Writes a UTF-8 encoded text string to the backend S3 bucket.
+#
+# Arguments
+# - key  : S3 object key
+# - text : string content to write
+# --------------------------------------------------------------------------------
 def write_s3_text(key, text):
 
     s3.put_object(
@@ -153,6 +251,19 @@ def write_s3_text(key, text):
     )
 
 
+# --------------------------------------------------------------------------------
+# Function: read_s3_text
+#
+# Purpose
+# Reads a UTF-8 text object from the backend S3 bucket. Returns an
+# empty string if the object does not exist (NoSuchKey / 404).
+#
+# Arguments
+# - key : S3 object key
+#
+# Returns
+# - object contents as string, or empty string if missing
+# --------------------------------------------------------------------------------
 def read_s3_text(key):
 
     try:
@@ -170,6 +281,15 @@ def read_s3_text(key):
         raise
 
 
+# --------------------------------------------------------------------------------
+# Function: delete_s3_object
+#
+# Purpose
+# Deletes an object from the backend S3 bucket. No-ops for empty keys.
+#
+# Arguments
+# - key : S3 object key to delete
+# --------------------------------------------------------------------------------
 def delete_s3_object(key):
 
     if not key:
@@ -181,6 +301,19 @@ def delete_s3_object(key):
     )
 
 
+# --------------------------------------------------------------------------------
+# Function: enqueue_job_request
+#
+# Purpose
+# Sends a scoring request message to the SQS job queue.
+#
+# Arguments
+# - user_id     : authenticated user identifier
+# - job_id      : UUID of the job record
+# - resume_id   : UUID of the resume to score against
+# - source_type : "url" or "raw_text"
+# - job_url     : URL to fetch for URL-type jobs, empty string otherwise
+# --------------------------------------------------------------------------------
 def enqueue_job_request(user_id, job_id, resume_id, source_type, job_url):
     message = {
         "user_id": user_id,

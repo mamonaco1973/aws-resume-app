@@ -1,3 +1,9 @@
+/* ========================================================================== */
+/* app.js                                                                      */
+/* Dashboard controller. Initializes auth state, wires up the new-job form,  */
+/* resume selector, and job list on DOMContentLoaded.                         */
+/* ========================================================================== */
+
 import { createJob, listResumes } from "./api.js";
 import { loadJobs } from "./jobs.js";
 import { bindResumeHandlers, openResumeManager } from "./resumes.js";
@@ -22,6 +28,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
+/* -------------------------------------------------------------------------- */
+/* Function: bindUiHandlers                                                    */
+/* Purpose: Attach all event listeners for the dashboard: modal open/close,  */
+/*          source type toggle, form submit, live validation, and auth        */
+/*          buttons. Called once on DOMContentLoaded.                         */
+/* -------------------------------------------------------------------------- */
 function bindUiHandlers() {
   const newJobModal = document.getElementById("new-job-modal");
   const resumeModal = document.getElementById("resume-modal");
@@ -151,6 +163,11 @@ document
 
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: updateSourceFields                                                */
+/* Purpose: Show only the input field group that matches the selected source  */
+/*          type (url, raw_text, or linkedin_job_id); hide the others.       */
+/* -------------------------------------------------------------------------- */
 function updateSourceFields() {
   const sourceType = document.getElementById("source-type");
   const urlField = document.getElementById("url-field");
@@ -180,6 +197,11 @@ function updateSourceFields() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: populateResumeSelect                                              */
+/* Purpose: Fetch all resumes and rebuild the resume dropdown. Restores the   */
+/*          last-used selection when possible; falls back to the first item.  */
+/* -------------------------------------------------------------------------- */
 async function populateResumeSelect() {
   const resumeSelect = document.getElementById("resume-select");
 
@@ -220,6 +242,11 @@ async function populateResumeSelect() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: resetNewJobForm                                                   */
+/* Purpose: Clear all new-job form fields and restore the default source type */
+/*          (url), then update the visible source field group.                */
+/* -------------------------------------------------------------------------- */
 function resetNewJobForm() {
   document.getElementById("new-job-form")?.reset();
 
@@ -231,6 +258,11 @@ function resetNewJobForm() {
   updateSourceFields();
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: validateNewJobForm                                                */
+/* Purpose: Collect and validate all new-job form inputs. Returns an object   */
+/*          with isValid and an errors map keyed by field name.               */
+/* -------------------------------------------------------------------------- */
 function validateNewJobForm() {
   const errors = {};
 
@@ -286,6 +318,11 @@ function validateNewJobForm() {
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: parseLinkedInJobIds                                               */
+/* Purpose: Split newline-separated input into a trimmed array of job ID      */
+/*          strings, discarding blank lines.                                  */
+/* -------------------------------------------------------------------------- */
 function parseLinkedInJobIds(value) {
   return value
     .split(/\n+/)
@@ -293,11 +330,20 @@ function parseLinkedInJobIds(value) {
     .filter(Boolean);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: isValidLinkedInJobId                                              */
+/* Purpose: Validate that a LinkedIn job ID is purely numeric and 7–12 digits.*/
+/* -------------------------------------------------------------------------- */
 function isValidLinkedInJobId(value) {
   return /^\d{7,12}$/.test(value);
 }
 
 
+/* -------------------------------------------------------------------------- */
+/* Function: renderNewJobFormErrors                                            */
+/* Purpose: Map the errors object from validateNewJobForm to the corresponding*/
+/*          inline error elements in the DOM.                                 */
+/* -------------------------------------------------------------------------- */
 function renderNewJobFormErrors(errors) {
   setFieldError("resume-error", errors.resume);
   setFieldError("job-url-error", errors.jobUrl);
@@ -309,6 +355,11 @@ function clearNewJobFormErrors() {
   renderNewJobFormErrors({});
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: setFieldError                                                     */
+/* Purpose: Show or hide an inline error element. When message is truthy the  */
+/*          element is revealed; when falsy it is cleared and hidden.         */
+/* -------------------------------------------------------------------------- */
 function setFieldError(elementId, message) {
   const element = document.getElementById(elementId);
 
@@ -325,6 +376,11 @@ function setFieldError(elementId, message) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: updateNewJobFormValidation                                        */
+/* Purpose: Run live validation on every input change and enable or disable   */
+/*          the submit button based on the result.                            */
+/* -------------------------------------------------------------------------- */
 function updateNewJobFormValidation() {
   const validation = validateNewJobForm();
 
@@ -337,6 +393,10 @@ function updateNewJobFormValidation() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: isValidUrl                                                        */
+/* Purpose: Return true only if the value is a well-formed http or https URL. */
+/* -------------------------------------------------------------------------- */
 function isValidUrl(value) {
   try {
     const url = new URL(value);
@@ -346,6 +406,11 @@ function isValidUrl(value) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: refreshApp                                                        */
+/* Purpose: Reload the job list from the API and re-render the table.         */
+/*          Disables the refresh button while in-flight.                      */
+/* -------------------------------------------------------------------------- */
 async function refreshApp() {
   const refreshButton = document.getElementById("btn-refresh");
   const originalText = refreshButton?.textContent || "Refresh";
@@ -368,6 +433,12 @@ async function refreshApp() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: submitJobScoringRequest                                           */
+/* Purpose: Read the selected source type and dispatch the appropriate        */
+/*          createJob call. LinkedIn job IDs are expanded into individual     */
+/*          URL-based job submissions.                                        */
+/* -------------------------------------------------------------------------- */
 async function submitJobScoringRequest() {
   const resumeId = document.getElementById("resume-select")?.value.trim() || "";
   const sourceType = document.getElementById("source-type")?.value || "url";
@@ -429,6 +500,11 @@ async function submitJobScoringRequest() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: updateAuthButtons                                                 */
+/* Purpose: Toggle sign-in/sign-out visibility and enable or disable action   */
+/*          buttons based on whether the user is currently authenticated.     */
+/* -------------------------------------------------------------------------- */
 function updateAuthButtons() {
   const signIn = document.getElementById("btn-sign-in");
   const signOut = document.getElementById("btn-sign-out");
@@ -457,6 +533,11 @@ function updateAuthButtons() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: showNotLoggedInMessage                                            */
+/* Purpose: Hide the jobs table and replace the empty state with a sign-in   */
+/*          prompt for unauthenticated visitors.                              */
+/* -------------------------------------------------------------------------- */
 function showNotLoggedInMessage() {
   const table = document.getElementById("jobs-table");
   const emptyState = document.getElementById("empty-state");

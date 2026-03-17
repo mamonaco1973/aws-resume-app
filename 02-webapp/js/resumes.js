@@ -1,3 +1,9 @@
+/* ========================================================================== */
+/* resumes.js                                                                  */
+/* Resume manager modal: list, select, create, update, and delete resumes.    */
+/* Tracks selectedResumeId to switch between create and edit mode.            */
+/* ========================================================================== */
+
 import {
   createResume,
   deleteResume,
@@ -15,6 +21,11 @@ let handlersBound = false;
 // Public API
 // -----------------------------------------------------------------------------
 
+/* -------------------------------------------------------------------------- */
+/* Function: bindResumeHandlers                                                */
+/* Purpose: Attach event listeners for the resume modal (new, close, save,   */
+/*          delete). Guards against double-binding with handlersBound flag.   */
+/* -------------------------------------------------------------------------- */
 export function bindResumeHandlers() {
   if (handlersBound) {
     return;
@@ -45,6 +56,11 @@ export function bindResumeHandlers() {
   handlersBound = true;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: openResumeManager                                                 */
+/* Purpose: Refresh the resume list, restore the last selection if still      */
+/*          valid, then show the resume modal.                                 */
+/* -------------------------------------------------------------------------- */
 export async function openResumeManager() {
   await refreshResumeList();
 
@@ -74,6 +90,11 @@ async function refreshResumeList() {
   renderResumeList();
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: saveResume                                                        */
+/* Purpose: Create or update a resume depending on whether selectedResumeId   */
+/*          is set. Refreshes the list and re-selects after a successful save.*/
+/* -------------------------------------------------------------------------- */
 async function saveResume() {
   const nameInput = document.getElementById("resume-name");
   const textInput = document.getElementById("resume-text");
@@ -140,6 +161,11 @@ async function saveResume() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: handleDeleteResume                                                */
+/* Purpose: Confirm deletion, call the API, clear the selection tracking,     */
+/*          and reset the form after a successful delete.                      */
+/* -------------------------------------------------------------------------- */
 async function handleDeleteResume() {
   if (!selectedResumeId) {
     return;
@@ -219,6 +245,12 @@ function renderResumeList() {
   });
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: selectResume                                                      */
+/* Purpose: Fetch a resume by ID, populate the edit form, and highlight the   */
+/*          active item in the list. Updates lastSelectedResumeId for         */
+/*          persistence across modal open/close cycles.                        */
+/* -------------------------------------------------------------------------- */
 async function selectResume(resumeId) {
   try {
     const resume = await getResume(resumeId);

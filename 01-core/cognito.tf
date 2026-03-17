@@ -82,17 +82,37 @@ resource "aws_cognito_user_pool_client" "resume_app" {
 # Outputs
 # =================================================================================
 
+# ---------------------------------------------------------------------------------
+# Cognito User Pool ID
+# Consumed by apply.sh to configure frontend OAuth2 settings
+# ---------------------------------------------------------------------------------
+
 output "cognito_user_pool_id" {
   value = aws_cognito_user_pool.resume_app.id
 }
+
+# ---------------------------------------------------------------------------------
+# Cognito App Client ID
+# Used by the SPA as the OAuth2 client_id in authorization requests
+# ---------------------------------------------------------------------------------
 
 output "cognito_user_pool_client_id" {
   value = aws_cognito_user_pool_client.resume_app.id
 }
 
+# ---------------------------------------------------------------------------------
+# Cognito Hosted UI domain prefix
+# Used by apply.sh to construct the full Hosted UI base URL for the frontend
+# ---------------------------------------------------------------------------------
+
 output "cognito_domain" {
   value = aws_cognito_user_pool_domain.resume_app.domain
 }
+
+# ---------------------------------------------------------------------------------
+# Cognito Hosted UI base URL
+# Full URL consumed by apply.sh to populate COGNITO_DOMAIN in config.js
+# ---------------------------------------------------------------------------------
 
 output "cognito_hosted_ui_base" {
   value = "https://${aws_cognito_user_pool_domain.resume_app.domain}.auth.${data.aws_region.current.region}.amazoncognito.com"

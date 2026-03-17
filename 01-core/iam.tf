@@ -53,6 +53,11 @@ resource "aws_iam_policy" "lambda_dynamodb" {
   })
 }
 
+# ================================================================================
+# Attach DynamoDB policy to Lambda role
+# Grants Lambda functions read/write access to the application table
+# ================================================================================
+
 resource "aws_iam_role_policy_attachment" "lambda_dynamodb_attach" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = aws_iam_policy.lambda_dynamodb.arn
@@ -90,6 +95,11 @@ resource "aws_iam_policy" "lambda_s3" {
   })
 }
 
+# ================================================================================
+# Attach S3 policy to Lambda role
+# Grants Lambda functions access to user data objects in the backend bucket
+# ================================================================================
+
 resource "aws_iam_role_policy_attachment" "lambda_s3_attach" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = aws_iam_policy.lambda_s3.arn
@@ -126,6 +136,11 @@ resource "aws_iam_policy" "lambda_sqs" {
   })
 }
 
+# ================================================================================
+# Attach SQS policy to Lambda role
+# Grants Lambda functions the ability to send and process job queue messages
+# ================================================================================
+
 resource "aws_iam_role_policy_attachment" "lambda_sqs_attach" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = aws_iam_policy.lambda_sqs.arn
@@ -152,6 +167,11 @@ resource "aws_iam_policy" "lambda_bedrock" {
     ]
   })
 }
+
+# ================================================================================
+# Attach Bedrock policy to Lambda role
+# Grants the worker Lambda permission to invoke AI models for scoring
+# ================================================================================
 
 resource "aws_iam_role_policy_attachment" "lambda_bedrock_attach" {
   role       = aws_iam_role.lambda_exec.name

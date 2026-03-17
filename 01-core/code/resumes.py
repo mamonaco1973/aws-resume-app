@@ -38,10 +38,33 @@ BACKEND_BUCKET = os.environ["BACKEND_BUCKET_NAME"]
 # Common helpers
 # --------------------------------------------------------------------------------
 
+# --------------------------------------------------------------------------------
+# Function: utc_now
+#
+# Purpose
+# Returns the current UTC timestamp in ISO 8601 format, truncated to
+# second precision.
+#
+# Returns
+# - ISO 8601 timestamp string (no microseconds)
+# --------------------------------------------------------------------------------
 def utc_now():
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
+# --------------------------------------------------------------------------------
+# Function: response
+#
+# Purpose
+# Builds a standard API Gateway response dict.
+#
+# Arguments
+# - status_code : HTTP status code integer
+# - body        : Python object to serialize as the JSON response body
+#
+# Returns
+# - dict with statusCode and body keys
+# --------------------------------------------------------------------------------
 def response(status_code, body):
     return {
         "statusCode": status_code,
@@ -49,6 +72,19 @@ def response(status_code, body):
     }
 
 
+# --------------------------------------------------------------------------------
+# Function: get_user_id
+#
+# Purpose
+# Extracts the authenticated user ID from the Cognito JWT claims on
+# the API Gateway event.
+#
+# Arguments
+# - event : API Gateway Lambda event dict
+#
+# Returns
+# - cognito:username, sub, or "demo" as fallback
+# --------------------------------------------------------------------------------
 def get_user_id(event):
     claims = (
         event.get("requestContext", {})
@@ -60,11 +96,37 @@ def get_user_id(event):
     return claims.get("cognito:username") or claims.get("sub") or "demo"
 
 
+# --------------------------------------------------------------------------------
+# Function: get_resume_id
+#
+# Purpose
+# Extracts the resume_id path parameter from the API Gateway event.
+#
+# Arguments
+# - event : API Gateway Lambda event dict
+#
+# Returns
+# - resume_id string or None if not present
+# --------------------------------------------------------------------------------
 def get_resume_id(event):
     path_params = event.get("pathParameters") or {}
     return path_params.get("resume_id")
 
 
+# --------------------------------------------------------------------------------
+# Function: build_keys
+#
+# Purpose
+# Derives the DynamoDB partition key, sort key, and S3 object key for
+# a given user and resume ID pair.
+#
+# Arguments
+# - user_id   : authenticated user identifier
+# - resume_id : UUID of the resume record
+#
+# Returns
+# - tuple of (pk, sk, s3_key)
+# --------------------------------------------------------------------------------
 def build_keys(user_id, resume_id):
     pk = f"USER#{user_id}"
     sk = f"RESUME#{resume_id}"
@@ -72,6 +134,19 @@ def build_keys(user_id, resume_id):
     return pk, sk, s3_key
 
 
+# --------------------------------------------------------------------------------
+# Function: get_resume_item
+#
+# Purpose
+# Fetches a single resume record from DynamoDB by its composite key.
+#
+# Arguments
+# - pk : DynamoDB partition key (USER#<user_id>)
+# - sk : DynamoDB sort key (RESUME#<resume_id>)
+#
+# Returns
+# - DynamoDB item dict or None if not found
+# --------------------------------------------------------------------------------
 def get_resume_item(pk, sk):
     result = table.get_item(
         Key={

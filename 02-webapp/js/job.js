@@ -1,3 +1,9 @@
+/* ========================================================================== */
+/* job.js                                                                      */
+/* Job detail page: loads a single job record by URL query param and renders  */
+/* all fields. Also handles inline notes saving.                               */
+/* ========================================================================== */
+
 import { getJob, updateJobNotes } from "./api.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -18,11 +24,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
+/* -------------------------------------------------------------------------- */
+/* Function: getJobIdFromUrl                                                   */
+/* Purpose: Read the job ID from the "id" query parameter of the current URL. */
+/* -------------------------------------------------------------------------- */
 function getJobIdFromUrl() {
   const params = new URLSearchParams(window.location.search);
   return params.get("id")?.trim() || "";
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: renderJob                                                         */
+/* Purpose: Populate every field in the job detail view from the API response */
+/*          object, then reveal the content panel and hide the loading state. */
+/* -------------------------------------------------------------------------- */
 function renderJob(job) {
   setText("job-title", job.job_title || "—");
   setText("job-company", job.company || "—");
@@ -42,6 +57,10 @@ function renderJob(job) {
   document.getElementById("job-detail-content")?.classList.remove("hidden");
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: renderJobUrl                                                      */
+/* Purpose: Render the job URL as a safe anchor tag, or a dash if absent.     */
+/* -------------------------------------------------------------------------- */
 function renderJobUrl(value) {
   const element = document.getElementById("job-url");
 
@@ -65,6 +84,11 @@ function renderJobUrl(value) {
   `;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: renderTextBlock                                                   */
+/* Purpose: Set the text content of an element to the trimmed value, or a    */
+/*          dash placeholder if the value is empty or absent.                 */
+/* -------------------------------------------------------------------------- */
 function renderTextBlock(elementId, value) {
   const element = document.getElementById(elementId);
 
@@ -92,6 +116,11 @@ function renderJobNotes(value) {
   element.value = value;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: bindNotesHandler                                                  */
+/* Purpose: Wire the "Update Notes" button to save the textarea value via     */
+/*          the API and display inline success or error feedback.             */
+/* -------------------------------------------------------------------------- */
 function bindNotesHandler(jobId) {
   const button = document.getElementById("update-job-notes-btn");
   const textarea = document.getElementById("job-notes");
@@ -135,6 +164,11 @@ function clearNotesMessages() {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: showNotesError                                                    */
+/* Purpose: Display an inline error message below the notes field. Falls back */
+/*          to window.alert if the error element is missing.                  */
+/* -------------------------------------------------------------------------- */
 function showNotesError(message) {
   const element = document.getElementById("job-notes-error");
 
@@ -147,6 +181,10 @@ function showNotesError(message) {
   element.classList.remove("hidden");
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: showNotesSuccess                                                  */
+/* Purpose: Display an inline success message below the notes field.          */
+/* -------------------------------------------------------------------------- */
 function showNotesSuccess(message) {
   const element = document.getElementById("job-notes-success");
 
@@ -172,6 +210,11 @@ function setText(elementId, value) {
   element.textContent = value;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: renderError                                                       */
+/* Purpose: Show a page-level error and hide the loading state. Falls back to */
+/*          window.alert if the error container element is missing.           */
+/* -------------------------------------------------------------------------- */
 function renderError(message) {
   document.getElementById("job-detail-loading")?.classList.add("hidden");
 

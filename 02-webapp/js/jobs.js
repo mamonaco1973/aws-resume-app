@@ -1,3 +1,9 @@
+/* ========================================================================== */
+/* jobs.js                                                                     */
+/* Fetches the job list, renders the jobs table, and handles column sorting   */
+/* and per-row deletion. Exported loadJobs() is the public entry point.       */
+/* ========================================================================== */
+
 import { deleteJob, listJobs } from "./api.js";
 
 let jobs = [];
@@ -48,6 +54,10 @@ function bindSortHandlers() {
   });
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: sortJobs                                                          */
+/* Purpose: Sort the jobs array in place using currentSort field/direction.   */
+/* -------------------------------------------------------------------------- */
 function sortJobs() {
   const { field, direction } = currentSort;
 
@@ -67,6 +77,11 @@ function sortJobs() {
   });
 }
 
+/* -------------------------------------------------------------------------- */
+/* Function: normalizeSortValue                                                */
+/* Purpose: Coerce a field value into a type-appropriate form for comparison. */
+/*          Scores become numbers, dates become timestamps, rest lowercase.   */
+/* -------------------------------------------------------------------------- */
 function normalizeSortValue(value, field) {
   if (field === "score") {
     return value == null ? -1 : Number(value);
