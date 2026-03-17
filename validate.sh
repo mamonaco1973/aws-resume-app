@@ -37,7 +37,7 @@ COGNITO_HOSTED_UI="$(terraform output -raw cognito_hosted_ui_base 2>/dev/null ||
 
 echo ""
 echo "============================================================================"
-echo "AWS Bedrock Scoring Quick Start"
+echo "AWS Bedrock Scoring App - Quick Start"
 echo "============================================================================"
 echo ""
 
