@@ -86,10 +86,6 @@ export COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
 
 cd .. || exit 1
 
-# echo "NOTE: Bucket name is ${BUCKET_NAME}"
-# echo "NOTE: API Gateway URL - ${API_BASE_URL}"
-# echo "NOTE: Bucket URL - ${BUCKET_URL}"
-
 # ------------------------------------------------------------------------------
 # DEPLOYING WEB CLIENT ARTIFACTS
 # ------------------------------------------------------------------------------
@@ -106,76 +102,15 @@ envsubst < js/config.js.tmpl > js/config.js || {
 }
 
 aws s3 cp . s3://${BUCKET_NAME} --recursive
-echo "NOTE: Web application URL - $BUCKET_URL/index.html"
 
 cd ..
 
-# # ------------------------------------------------------------------------------
-# # READ COGNITO OUTPUTS FROM BACKEND STACK
-# # ------------------------------------------------------------------------------
-# # Reads Terraform outputs from 01-lambdas to configure the SPA login:
-# #   - Cognito domain prefix
-# #   - App client ID
-# # ------------------------------------------------------------------------------
-# echo "NOTE: Reading Cognito outputs..."
+# ------------------------------------------------------------------------------
+# RUNTIME VALIDATION
+# ------------------------------------------------------------------------------
+echo "NOTE: Running post-deployment validation..."
+./validate.sh
 
-# COGNITO_DOMAIN_PREFIX=$(cd ../01-lambdas && terraform output -raw cognito_domain)
-# CLIENT_ID=$(cd ../01-lambdas && terraform output -raw app_client_id)
-
-# if [[ -z "${COGNITO_DOMAIN_PREFIX}" || -z "${CLIENT_ID}" ]]; then
-#   echo "ERROR: Failed to read Cognito outputs."
-#   exit 1
-# fi
-
-# # ------------------------------------------------------------------------------
-# # BUILD COGNITO DOMAIN
-# # ------------------------------------------------------------------------------
-# # Constructs the Cognito Hosted UI domain from the domain prefix and
-# # the region derived from the web bucket.
-# # ------------------------------------------------------------------------------
-# COGNITO_DOMAIN="${COGNITO_DOMAIN_PREFIX}.auth.${REGION}.amazoncognito.com"
-
-# # ------------------------------------------------------------------------------
-# # WRITE WEB CLIENT CONFIGURATION
-# # ------------------------------------------------------------------------------
-# # Writes config.json consumed by the SPA. redirectUri must match the
-# # Hosted UI callback URL registered in the Cognito app client.
-# # ------------------------------------------------------------------------------
-# echo "NOTE: Writing config.json..."
-
-# cat > config.json <<EOF
-# {
-#   "cognitoDomain": "${COGNITO_DOMAIN}",
-#   "clientId": "${CLIENT_ID}",
-#   "redirectUri": "${BUCKET_URL}/callback.html",
-#   "apiBaseUrl": "${API_BASE}"
-# }
-# EOF
-
-# # ------------------------------------------------------------------------------
-# # DEPLOY WEB CLIENT (TERRAFORM)
-# # ------------------------------------------------------------------------------
-# # Applies Terraform in 02-webapp, targeting an existing bucket passed
-# # via web_bucket_name. This module should not create the bucket.
-# # ------------------------------------------------------------------------------
-# terraform init
-# terraform apply -auto-approve \
-#   -var="web_bucket_name=${BUCKET_NAME}"
-
-# cd .. || exit 1
-
-# # ================================================================================
-# # POST-DEPLOYMENT VALIDATION (OPTIONAL)
-# # ================================================================================
-
-# # ------------------------------------------------------------------------------
-# # RUNTIME VALIDATION
-# # ------------------------------------------------------------------------------
-# # Enable once validate.sh is implemented.
-# # ------------------------------------------------------------------------------
-# echo "NOTE: Running post-deployment validation..."
-# ./validate.sh
-
-# # ================================================================================
-# # END OF SCRIPT
-# # ================================================================================
+# ================================================================================
+# END OF SCRIPT
+# ================================================================================
