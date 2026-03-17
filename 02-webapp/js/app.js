@@ -431,8 +431,7 @@ function scheduleAutoRefresh() {
   const spinner = indicator?.querySelector(".spinner");
 
   if (hasPendingJobs()) {
-    // No spinner while waiting — just the live countdown text.
-    spinner?.classList.add("hidden");
+    spinner?.classList.remove("hidden");
     indicator?.classList.remove("hidden");
 
     let remaining = AUTO_REFRESH_SECONDS;
