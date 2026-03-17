@@ -5,11 +5,12 @@
 /* ========================================================================== */
 
 import { createJob, listResumes } from "./api.js";
-import { loadJobs } from "./jobs.js";
+import { loadJobs, hasPendingJobs } from "./jobs.js";
 import { bindResumeHandlers, openResumeManager } from "./resumes.js";
 import { getLoginUrl, getLogoutUrl, isLoggedIn } from "./auth.js";
 
 let lastSelectedResumeId = "";
+let autoRefreshTimer = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   updateAuthButtons();
@@ -407,9 +408,31 @@ function isValidUrl(value) {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Function: scheduleAutoRefresh                                               */
+/* Purpose: If any job is still pending (submitted/Scoring), schedule a       */
+/*          15-second refresh. Clears any existing timer first so manual      */
+/*          refreshes reset the countdown rather than stacking timers.        */
+/*          Stops automatically once all jobs reach a terminal status.        */
+/* -------------------------------------------------------------------------- */
+function scheduleAutoRefresh() {
+  if (autoRefreshTimer !== null) {
+    clearTimeout(autoRefreshTimer);
+    autoRefreshTimer = null;
+  }
+
+  if (hasPendingJobs()) {
+    autoRefreshTimer = setTimeout(() => {
+      autoRefreshTimer = null;
+      refreshApp();
+    }, 15000);
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Function: refreshApp                                                        */
 /* Purpose: Reload the job list from the API and re-render the table.         */
-/*          Disables the refresh button while in-flight.                      */
+/*          Disables the refresh button while in-flight, then schedules an    */
+/*          auto-refresh if any jobs are still pending.                       */
 /* -------------------------------------------------------------------------- */
 async function refreshApp() {
   const refreshButton = document.getElementById("btn-refresh");
@@ -430,6 +453,8 @@ async function refreshApp() {
       refreshButton.disabled = false;
       /*refreshButton.textContent = originalText;*/
     }
+
+    scheduleAutoRefresh();
   }
 }
 

@@ -23,6 +23,14 @@ export async function loadJobs() {
   bindSortHandlers();
 }
 
+// Returns true if any job is still being processed, so the dashboard
+// knows to keep polling.
+export function hasPendingJobs() {
+  return jobs.some(
+    (job) => job.status === "submitted" || job.status === "Scoring"
+  );
+}
+
 // -----------------------------------------------------------------------------
 // Sorting
 // -----------------------------------------------------------------------------
