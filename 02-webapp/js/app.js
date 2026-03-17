@@ -11,6 +11,8 @@ import { getLoginUrl, getLogoutUrl, isLoggedIn } from "./auth.js";
 
 let lastSelectedResumeId = "";
 let autoRefreshTimer = null;
+let countdownInterval = null;
+const AUTO_REFRESH_SECONDS = 15;
 
 document.addEventListener("DOMContentLoaded", async () => {
   updateAuthButtons();
@@ -419,17 +421,34 @@ function scheduleAutoRefresh() {
     clearTimeout(autoRefreshTimer);
     autoRefreshTimer = null;
   }
+  if (countdownInterval !== null) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
 
   const indicator = document.getElementById("auto-refresh-indicator");
   const text = document.getElementById("auto-refresh-text");
+  const spinner = indicator?.querySelector(".spinner");
 
   if (hasPendingJobs()) {
-    if (text) text.textContent = "Auto-refreshing in 15s...";
+    // No spinner while waiting — just the live countdown text.
+    spinner?.classList.add("hidden");
     indicator?.classList.remove("hidden");
+
+    let remaining = AUTO_REFRESH_SECONDS;
+    if (text) text.textContent = `Auto-refreshing in ${remaining}s...`;
+
+    countdownInterval = setInterval(() => {
+      remaining -= 1;
+      if (text) text.textContent = `Auto-refreshing in ${remaining}s...`;
+    }, 1000);
+
     autoRefreshTimer = setTimeout(() => {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
       autoRefreshTimer = null;
       refreshApp();
-    }, 15000);
+    }, AUTO_REFRESH_SECONDS * 1000);
   } else {
     indicator?.classList.add("hidden");
   }
@@ -442,13 +461,21 @@ function scheduleAutoRefresh() {
 /*          auto-refresh if any jobs are still pending.                       */
 /* -------------------------------------------------------------------------- */
 async function refreshApp() {
+  // Stop any running countdown before fetching.
+  if (countdownInterval !== null) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+
   const refreshButton = document.getElementById("btn-refresh");
   const table = document.getElementById("jobs-table");
   const indicator = document.getElementById("auto-refresh-indicator");
   const text = document.getElementById("auto-refresh-text");
+  const spinner = indicator?.querySelector(".spinner");
 
   try {
     if (refreshButton) refreshButton.disabled = true;
+    spinner?.classList.remove("hidden");
     if (text) text.textContent = "Loading...";
     indicator?.classList.remove("hidden");
     table?.classList.add("loading");
