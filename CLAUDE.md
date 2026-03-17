@@ -145,3 +145,55 @@ Use section banners to describe infrastructure blocks:
 
 Comments should explain **why infrastructure exists**, not repeat the
 resource definition.
+
+### JavaScript Files
+
+- Keep comment lines <= 80 characters
+- Do not change UI behavior unless explicitly asked
+- Preserve existing function names, IDs, and DOM structure
+- Prefer concise section banners for major areas
+- Use comments to explain intent, data flow, and UI behavior
+- Do not add noisy comments for obvious one-line DOM operations
+- Keep comments professional and compact
+- Prefer small, reviewable diffs
+
+Use section banners like:
+
+/* ================================================================================ */
+/* Section Name */
+/* Purpose of this section */
+/* ================================================================================ */
+
+For functions, use short block comments when helpful:
+
+/* -------------------------------------------------------------------------------- */
+/* Function: functionName                                                           */
+/* Purpose: Explain what this function does                                         */
+/* -------------------------------------------------------------------------------- */
+
+### Shell Scripts
+
+- Keep comment lines <= 80 characters
+- Preserve strict bash style: set -euo pipefail
+- Use your quick start comment style
+- Prefer bannered sections for each major operation
+- Explain why a command block exists, not what obvious flags do
+- Keep comments concise and operational
+- Do not rewrite working command structure unless explicitly asked
+- Preserve variable names unless a rename is necessary
+- Prefer readable step-by-step execution flow
+- Keep scripts idempotent where possible
+
+Scripts should use section banners like:
+
+# ================================================================================
+# Section Name
+# Purpose of this block
+# ================================================================================
+
+For smaller subsections:
+
+# --------------------------------------------------------------------------------
+# Subsection Name
+# Brief operational note
+# --------------------------------------------------------------------------------
