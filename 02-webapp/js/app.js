@@ -12,7 +12,7 @@ import { getLoginUrl, getLogoutUrl, isLoggedIn } from "./auth.js";
 let lastSelectedResumeId = "";
 let autoRefreshTimer = null;
 let countdownInterval = null;
-const AUTO_REFRESH_SECONDS = 15;
+const AUTO_REFRESH_SECONDS = 5;
 
 document.addEventListener("DOMContentLoaded", async () => {
   updateAuthButtons();
