@@ -355,3 +355,87 @@ Together, these resources form a **secure, AI-powered serverless application**
 that demonstrates modern AWS architecture principles — **event-driven,
 fully managed, and identity-aware** — with all AI inference handled on demand
 through AWS Bedrock.
+
+---
+
+## Using the Application
+
+Once deployed, open the **Frontend URL** printed by `validate.sh` in your
+browser. The full workflow is:
+
+### 1. Sign In
+
+Click **Sign In** to be redirected to the **Cognito Hosted UI**. On first use,
+click **Sign up** and register with your email address. Cognito will send a
+verification code — enter it to confirm your account, then sign in.
+
+After authentication you are redirected back to the **Job Scoring Dashboard**.
+
+### 2. Add a Resume
+
+Before scoring any jobs you need at least one resume on file.
+
+1. Click **Manage Resumes**.
+2. Click **New Resume**, give it a name (e.g. `Software Engineer Resume`), and
+   paste the full plain-text content of your resume into the text area.
+3. Click **Create Resume**. The resume is stored in S3 and available
+   immediately for scoring.
+
+You can create multiple resumes (e.g. one tailored for backend roles, one for
+management) and choose between them at scoring time. Use the sidebar to switch
+between resumes, edit text, or delete ones you no longer need.
+
+### 3. Score a Job
+
+1. Click **Score New Job**.
+2. Select the resume you want to score against from the **Resume** dropdown.
+3. Choose a **Source Type**:
+
+   | Source Type | When to use |
+   |-------------|-------------|
+   | **Job URL** | Paste a direct link to any publicly accessible job posting (LinkedIn, Indeed, company careers page, etc.) |
+   | **Paste Job Description** | Paste the raw job description text directly — useful when a URL requires login |
+   | **LinkedIn Job IDs** | Enter one or more numeric LinkedIn job IDs (one per line) to batch-submit multiple jobs at once |
+
+4. Click **Submit**. The job is queued immediately and the modal closes.
+
+### 4. Monitor Scoring Progress
+
+The dashboard shows all submitted jobs. While a job is being processed:
+
+- The **Status** badge for that row pulses between `submitted` and `Scoring`.
+- A **spinner and countdown** appear in the toolbar — the list refreshes
+  automatically every 5 seconds until all pending jobs reach a terminal state.
+- You can also click **Refresh** at any time to poll immediately.
+
+Scoring typically takes **15–90 seconds** depending on Bedrock cache state.
+The first request for a given job type may take longer; repeat submissions
+against similar job descriptions are usually faster due to prompt caching.
+
+### 5. View the Analysis
+
+Once the status changes to **Scored**, click **Open** to view the full result.
+The job detail page shows:
+
+- **Score** — a 0–100 compatibility rating
+- **Overview** — 2–3 sentences rationalising why the score is what it is
+- **Strengths** — what your resume does well relative to the job requirements
+- **Weaknesses** — gaps or missing qualifications the employer is likely to notice
+- **Job Description** — the cleaned job text used for scoring
+- **Resume Snapshot** — the version of your resume that was scored (captured
+  at submission time, so edits to the resume afterwards do not affect past scores)
+
+### 6. Add Notes
+
+On the job detail page you can type personal notes (interview prep, recruiter
+contact details, application status, etc.) into the **Notes** field and save
+them. Notes are stored in S3 and are private to your account.
+
+### 7. Delete Jobs
+
+Click **Delete** on any row in the dashboard to permanently remove the job
+record and all associated S3 artifacts (job description, resume snapshot,
+analysis, and notes). This action is confirmed via a prompt and cannot be
+undone.
+
+---
