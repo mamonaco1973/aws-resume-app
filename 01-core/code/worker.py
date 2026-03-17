@@ -534,8 +534,9 @@ Required JSON fields:
 
 Rules:
 - score: integer from 0 to 100
-- summary: plain-text analysis with exactly two labeled paragraphs in
-  this order: "Strengths:" (2-3 sentences on resume positives relative
+- summary: plain-text analysis with exactly three labeled paragraphs in
+  this order: "Overview:" (2-3 sentences explaining why the score is
+  what it is), "Strengths:" (2-3 sentences on resume positives relative
   to the job), "Weaknesses:" (2-3 sentences on gaps or missing
   qualifications)
 - Do not wrap the response in markdown
