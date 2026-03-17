@@ -25,7 +25,7 @@ TF_DIR="${SCRIPT_DIR}/01-core"
 cd "${TF_DIR}"
 
 API_ENDPOINT="$(terraform output -raw api_endpoint 2>/dev/null || echo '<not found>')"
-FRONTEND_URL="$(terraform output -raw frontend_website_url 2>/dev/null || echo '<not found>')"
+FRONTEND_URL="$(terraform output -raw frontend_website_url 2>/dev/null || echo '<not found>')/index.html"
 FRONTEND_BUCKET="$(terraform output -raw frontend_bucket_name 2>/dev/null || echo '<not found>')"
 COGNITO_POOL_ID="$(terraform output -raw cognito_user_pool_id 2>/dev/null || echo '<not found>')"
 COGNITO_CLIENT_ID="$(terraform output -raw cognito_user_pool_client_id 2>/dev/null || echo '<not found>')"
