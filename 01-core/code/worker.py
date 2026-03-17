@@ -490,8 +490,9 @@ Required JSON fields:
 Rules:
 - score: integer from 0 to 100
 - summary: plain-text analysis with exactly three labeled paragraphs in
-  this order: "Overview:" (overall fit), "Strengths:" (resume positives
-  relative to the job), "Weaknesses:" (gaps or missing qualifications)
+  this order: "Overview:" (2-3 sentences on overall fit), "Strengths:"
+  (2-3 sentences on resume positives relative to the job), "Weaknesses:"
+  (2-3 sentences on gaps or missing qualifications)
 - Do not wrap the response in markdown
 - Do not include any explanation outside the JSON
 
@@ -519,6 +520,13 @@ JOB DESCRIPTION:
         ],
     }
 
+    logger.info(
+        "Bedrock scoring call starting. model=%s resume_chars=%s job_chars=%s",
+        BEDROCK_MODEL_ID,
+        len(resume_text),
+        len(job_text),
+    )
+
     response = bedrock_runtime.invoke_model(
         modelId=BEDROCK_MODEL_ID,
         body=json.dumps(body),
@@ -529,6 +537,11 @@ JOB DESCRIPTION:
     payload = json.loads(response["body"].read())
     text = payload["content"][0]["text"].strip()
     text = strip_code_fences(text)
+
+    logger.info(
+        "Bedrock scoring call completed. response_chars=%s",
+        len(text),
+    )
 
     return json.loads(text)
 
