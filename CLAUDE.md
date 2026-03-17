@@ -108,40 +108,46 @@ code.
 
 Modules should begin with a structured header:
 
-    # ================================================================================
-    # Module Name
-    #
-    # Purpose
-    # Brief explanation of what this module does.
-    #
-    # Key Responsibilities
-    # - Responsibility 1
-    # - Responsibility 2
-    # ================================================================================
+```python
+# ================================================================================
+# Module Name
+#
+# Purpose
+# Brief explanation of what this module does.
+#
+# Key Responsibilities
+# - Responsibility 1
+# - Responsibility 2
+# ================================================================================
+```
 
 Functions should include a short structured description:
 
-    # --------------------------------------------------------------------------------
-    # Function: function_name
-    #
-    # Purpose
-    # Explain what the function does.
-    #
-    # Arguments
-    # - arg_name : description
-    #
-    # Returns
-    # - description
-    # --------------------------------------------------------------------------------
+```python
+# --------------------------------------------------------------------------------
+# Function: function_name
+#
+# Purpose
+# Explain what the function does.
+#
+# Arguments
+# - arg_name : description
+#
+# Returns
+# - description
+# --------------------------------------------------------------------------------
+```
 
 ### Terraform Files
 
 Use section banners to describe infrastructure blocks:
 
-    # ================================================================================
-    # Section Name
-    # Description of resources created in this block
-    # ================================================================================
+```hcl
+# ================================================================================
+# Section Name
+# Description of resources created in this block
+# ================================================================================
+```
 
 Comments should explain **why infrastructure exists**, not repeat the
 resource definition.
@@ -159,17 +165,21 @@ resource definition.
 
 Use section banners like:
 
+```javascript
 /* ================================================================================ */
 /* Section Name */
 /* Purpose of this section */
 /* ================================================================================ */
+```
 
 For functions, use short block comments when helpful:
 
+```javascript
 /* -------------------------------------------------------------------------------- */
-/* Function: functionName                                                           */
+/* Function: functionName                                                            */
 /* Purpose: Explain what this function does                                         */
 /* -------------------------------------------------------------------------------- */
+```
 
 ### Shell Scripts
 
@@ -186,14 +196,18 @@ For functions, use short block comments when helpful:
 
 Scripts should use section banners like:
 
+```bash
 # ================================================================================
 # Section Name
 # Purpose of this block
 # ================================================================================
+```
 
 For smaller subsections:
 
+```bash
 # --------------------------------------------------------------------------------
 # Subsection Name
 # Brief operational note
 # --------------------------------------------------------------------------------
+```
