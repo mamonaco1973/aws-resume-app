@@ -480,7 +480,9 @@ Required JSON fields:
 
 Rules:
 - score: integer from 0 to 100
-- summary: plain-text analysis explaining the score
+- summary: plain-text analysis with exactly three labeled paragraphs in
+  this order: "Overview:" (overall fit), "Strengths:" (resume positives
+  relative to the job), "Weaknesses:" (gaps or missing qualifications)
 - Do not wrap the response in markdown
 - Do not include any explanation outside the JSON
 
