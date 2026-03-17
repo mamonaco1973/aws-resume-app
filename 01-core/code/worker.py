@@ -32,6 +32,7 @@ import json
 import logging
 import os
 import re
+import time
 import urllib.request
 from datetime import datetime, timezone
 
@@ -456,6 +457,14 @@ SOURCE TEXT:
         ],
     }
 
+    logger.info(
+        "Bedrock extraction call starting. model=%s input_chars=%s",
+        BEDROCK_MODEL_ID,
+        len(visible_text),
+    )
+
+    t0 = time.time()
+
     response = bedrock_runtime.invoke_model(
         modelId=BEDROCK_MODEL_ID,
         body=json.dumps(body),
@@ -463,7 +472,19 @@ SOURCE TEXT:
         accept="application/json",
     )
 
+    elapsed = time.time() - t0
+
     payload = json.loads(response["body"].read())
+    usage = payload.get("usage", {})
+
+    logger.info(
+        "Bedrock extraction call completed. elapsed_sec=%.1f "
+        "input_tokens=%s output_tokens=%s",
+        elapsed,
+        usage.get("input_tokens", "n/a"),
+        usage.get("output_tokens", "n/a"),
+    )
+
     text = payload["content"][0]["text"].strip()
     text = strip_code_fences(text)
 
@@ -521,11 +542,14 @@ JOB DESCRIPTION:
     }
 
     logger.info(
-        "Bedrock scoring call starting. model=%s resume_chars=%s job_chars=%s",
+        "Bedrock scoring call starting. model=%s resume_chars=%s "
+        "job_chars=%s",
         BEDROCK_MODEL_ID,
         len(resume_text),
         len(job_text),
     )
+
+    t0 = time.time()
 
     response = bedrock_runtime.invoke_model(
         modelId=BEDROCK_MODEL_ID,
@@ -534,14 +558,21 @@ JOB DESCRIPTION:
         accept="application/json",
     )
 
+    elapsed = time.time() - t0
+
     payload = json.loads(response["body"].read())
-    text = payload["content"][0]["text"].strip()
-    text = strip_code_fences(text)
+    usage = payload.get("usage", {})
 
     logger.info(
-        "Bedrock scoring call completed. response_chars=%s",
-        len(text),
+        "Bedrock scoring call completed. elapsed_sec=%.1f "
+        "input_tokens=%s output_tokens=%s",
+        elapsed,
+        usage.get("input_tokens", "n/a"),
+        usage.get("output_tokens", "n/a"),
     )
+
+    text = payload["content"][0]["text"].strip()
+    text = strip_code_fences(text)
 
     return json.loads(text)
 
