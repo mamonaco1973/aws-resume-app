@@ -421,8 +421,10 @@ function scheduleAutoRefresh() {
   }
 
   const indicator = document.getElementById("auto-refresh-indicator");
+  const text = document.getElementById("auto-refresh-text");
 
   if (hasPendingJobs()) {
+    if (text) text.textContent = "Auto-refreshing in 15s...";
     indicator?.classList.remove("hidden");
     autoRefreshTimer = setTimeout(() => {
       autoRefreshTimer = null;
@@ -441,24 +443,23 @@ function scheduleAutoRefresh() {
 /* -------------------------------------------------------------------------- */
 async function refreshApp() {
   const refreshButton = document.getElementById("btn-refresh");
-  const originalText = refreshButton?.textContent || "Refresh";
+  const table = document.getElementById("jobs-table");
+  const indicator = document.getElementById("auto-refresh-indicator");
+  const text = document.getElementById("auto-refresh-text");
 
   try {
-    if (refreshButton) {
-      refreshButton.disabled = true;
-      /*refreshButton.textContent = "Refreshing...";*/
-    }
+    if (refreshButton) refreshButton.disabled = true;
+    if (text) text.textContent = "Loading...";
+    indicator?.classList.remove("hidden");
+    table?.classList.add("loading");
 
     await loadJobs();
   } catch (error) {
     console.error("Failed to refresh dashboard:", error);
     window.alert(`Failed to refresh jobs: ${error.message}`);
   } finally {
-    if (refreshButton) {
-      refreshButton.disabled = false;
-      /*refreshButton.textContent = originalText;*/
-    }
-
+    if (refreshButton) refreshButton.disabled = false;
+    table?.classList.remove("loading");
     scheduleAutoRefresh();
   }
 }
