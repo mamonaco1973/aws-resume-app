@@ -1,93 +1,53 @@
 #!/bin/bash
-# ===============================================================================
-# File: validate.sh
-# ===============================================================================
+# ================================================================================
+# validate.sh
+#
+# Purpose
+# Post-deploy validation for the AWS Bedrock Resume Scoring application.
+# Reads Terraform outputs and prints a quick-start summary of all key
+# endpoints, bucket names, and Cognito configuration.
+#
+# Requirements
+# - terraform CLI installed and authenticated
+# - AWS credentials configured
+# - Terraform state must exist (run apply.sh first)
+# ================================================================================
 
-# # ------------------------------------------------------------------------------
-# # Step 1: Print out test web application URL.
-# # ------------------------------------------------------------------------------
-# # ------------------------------------------------------------------------------
-# # SELECT WEB BUCKET BY PREFIX
-# # ------------------------------------------------------------------------------
-# # Finds the S3 bucket used for hosting the web client by matching a
-# # known prefix. Exactly one bucket must match.
-# # ------------------------------------------------------------------------------
-# PREFIX="cnotes"
+set -euo pipefail
 
-# read -r -a BUCKETS <<< "$(aws s3api list-buckets \
-#   --query "Buckets[?starts_with(Name, \`${PREFIX}\`)].Name" \
-#   --output text)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TF_DIR="${SCRIPT_DIR}/01-core"
 
-# # ------------------------------------------------------------------------------
-# # ENFORCE A SINGLE BUCKET MATCH
-# # ------------------------------------------------------------------------------
-# # Avoids deploying to the wrong bucket by requiring exactly one match.
-# # ------------------------------------------------------------------------------
-# if [[ "${#BUCKETS[@]}" -eq 0 ]]; then
-#   echo "ERROR: No S3 bucket found starting with '${PREFIX}'" >&2
-#   exit 1
-# elif [[ "${#BUCKETS[@]}" -gt 1 ]]; then
-#   echo "ERROR: Multiple S3 buckets found starting with '${PREFIX}':" >&2
-#   for b in "${BUCKETS[@]}"; do
-#     echo "  - ${b}" >&2
-#   done
-#   exit 1
-# fi
+# ================================================================================
+# Read Terraform outputs
+# ================================================================================
 
-# BUCKET_NAME="${BUCKETS[0]}"
-# echo "NOTE: Bucket name is ${BUCKET_NAME}"
+cd "${TF_DIR}"
 
-# # ------------------------------------------------------------------------------
-# # DETERMINE BUCKET REGION
-# # ------------------------------------------------------------------------------
-# # S3 returns "None" for buckets in us-east-1. Normalize this to the
-# # canonical region name so we can build a correct bucket URL.
-# # ------------------------------------------------------------------------------
-# REGION=$(aws s3api get-bucket-location \
-#   --bucket "${BUCKET_NAME}" \
-#   --query "LocationConstraint" \
-#   --output text)
+API_ENDPOINT="$(terraform output -raw api_endpoint 2>/dev/null || echo '<not found>')"
+FRONTEND_URL="$(terraform output -raw frontend_website_url 2>/dev/null || echo '<not found>')"
+FRONTEND_BUCKET="$(terraform output -raw frontend_bucket_name 2>/dev/null || echo '<not found>')"
+COGNITO_POOL_ID="$(terraform output -raw cognito_user_pool_id 2>/dev/null || echo '<not found>')"
+COGNITO_CLIENT_ID="$(terraform output -raw cognito_user_pool_client_id 2>/dev/null || echo '<not found>')"
+COGNITO_HOSTED_UI="$(terraform output -raw cognito_hosted_ui_base 2>/dev/null || echo '<not found>')"
 
-# if [[ "${REGION}" == "None" ]]; then
-#   REGION="us-east-1"
-# fi
+# ================================================================================
+# Quick Start Output
+# ================================================================================
 
-# # ------------------------------------------------------------------------------
-# # BUILD REGION-AWARE BUCKET URL
-# # ------------------------------------------------------------------------------
-# # Used for redirect URIs (callback.html) and other hosted assets.
-# # ------------------------------------------------------------------------------
-# BUCKET_URL="https://${BUCKET_NAME}.s3.${REGION}.amazonaws.com"
+echo ""
+echo "============================================================================"
+echo "AWS Bedrock Scoring Quick Start"
+echo "============================================================================"
+echo ""
 
-# echo "NOTE: Test application URL - ${BUCKET_URL}/index.html"
+printf "%-28s %s\n" "NOTE: Frontend URL:"        "${FRONTEND_URL}"
+printf "%-28s %s\n" "NOTE: API Endpoint:"        "${API_ENDPOINT}"
+echo ""
+printf "%-28s %s\n" "NOTE: Frontend Bucket:"     "${FRONTEND_BUCKET}"
+echo ""
+printf "%-28s %s\n" "NOTE: Cognito Pool ID:"     "${COGNITO_POOL_ID}"
+printf "%-28s %s\n" "NOTE: Cognito Client ID:"   "${COGNITO_CLIENT_ID}"
+printf "%-28s %s\n" "NOTE: Cognito Hosted UI:"   "${COGNITO_HOSTED_UI}"
 
-# # ------------------------------------------------------------------------------
-# # Step 2: Print Google OAuth values needed for Cognito federation.
-# # ------------------------------------------------------------------------------
-# # Google Console needs:
-# #   - Authorized JavaScript origins: where your SPA runs (this S3 origin)
-# #   - Authorized redirect URIs: where Google sends the auth response (Cognito)
-# # ------------------------------------------------------------------------------
-
-# # Pull Cognito domain prefix from Terraform outputs (01-lambdas)
-# COGNITO_DOMAIN="$(terraform -chdir=01-lambdas output -raw cognito_domain 2>/dev/null)"
-
-# if [[ -z "${COGNITO_DOMAIN}" ]]; then
-#   echo "ERROR: Could not read Terraform output 'cognito_domain' from 01-lambdas."
-#   echo "       Run './apply.sh' (or 'terraform -chdir=01-lambdas apply') first."
-#   exit 1
-# fi
-
-# COGNITO_IDP_RESPONSE_URL="https://${COGNITO_DOMAIN}.auth.${REGION}.amazoncognito.com/oauth2/idpresponse"
-
-# echo ""
-# echo "=============================================================================="
-# echo "Google Cloud Console (OAuth Client) values"
-# echo "=============================================================================="
-# echo "Authorized JavaScript origins:"
-# echo "  ${BUCKET_URL}"
-# echo ""
-# echo "Authorized redirect URIs:"
-# echo "  ${COGNITO_IDP_RESPONSE_URL}"
-# echo "=============================================================================="
-# echo ""
+echo ""
