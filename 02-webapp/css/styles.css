@@ -189,7 +189,9 @@ tr:hover {
 /* Auto-refresh indicator                                           */
 /* ================================================================ */
 
-#auto-refresh-indicator {
+/* display:inline-flex is only applied when .hidden is absent — avoids
+   the ID selector overriding .hidden { display:none } on this element */
+#auto-refresh-indicator:not(.hidden) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
