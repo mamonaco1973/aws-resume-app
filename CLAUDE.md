@@ -1,24 +1,29 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working
+with code in this repository.
 
 ## What This App Does
 
-AWS-based Resume Scoring Application. Users upload resumes and submit job postings (URL or raw text); the app uses AWS Bedrock (Claude Sonnet) to score resume-to-job compatibility (0–100) asynchronously.
+AWS-based Resume Scoring Application. Users upload resumes and submit
+job postings (URL or raw text); the app uses AWS Bedrock (Claude Sonnet)
+to score resume-to-job compatibility (0--100) asynchronously.
 
 ## Deployment Commands
 
 All deployment runs from the repo root:
 
-```bash
+``` bash
 ./apply.sh      # Full deploy: installs Python deps, runs Terraform, uploads frontend to S3
 ./destroy.sh    # Tear down entire stack
 ./check_env.sh  # Validate required tools: aws, terraform, jq
 ./validate.sh   # Post-deploy validation (partially implemented)
 ```
 
-Python dependencies are installed into the Lambda source directory directly:
-```bash
+Python dependencies are installed into the Lambda source directory
+directly:
+
+``` bash
 cd 01-core/code && pip install -r requirements.txt -t .
 ```
 
@@ -26,54 +31,117 @@ There are no test or lint commands configured.
 
 ## Architecture
 
-```
-01-core/           # Backend: Terraform IaC + Python Lambda source
-  code/            # Lambda functions (Python)
-  *.tf             # Terraform files
-02-webapp/         # Frontend: vanilla JS SPA, deployed to S3
-  js/config.js.tmpl  # Config template populated by apply.sh at deploy time
-```
+    01-core/           # Backend: Terraform IaC + Python Lambda source
+      code/            # Lambda functions (Python)
+      *.tf             # Terraform files
+    02-webapp/         # Frontend: vanilla JS SPA, deployed to S3
+      js/config.js.tmpl  # Config template populated by apply.sh at deploy time
 
 ### Request Flow
 
-**Resume upload:** POST /resumes → API Lambda → S3 (text) + DynamoDB (metadata)
+**Resume upload:** POST /resumes → API Lambda → S3 (text) + DynamoDB
+(metadata)
 
 **Job scoring:**
-1. POST /jobs → API Lambda → copies resume snapshot to S3, sends SQS message → returns job with `submitted` status
-2. Worker Lambda (SQS trigger) → fetches URL if needed → Bedrock for field extraction → Bedrock for score → saves analysis to S3 → updates DynamoDB with score and `Scored` status
-3. Frontend polls GET /jobs periodically to show updated scores
+
+1.  POST /jobs → API Lambda → copies resume snapshot to S3, sends SQS
+    message → returns job with `submitted` status
+2.  Worker Lambda (SQS trigger) → fetches URL if needed → Bedrock for
+    field extraction → Bedrock for score → saves analysis to S3 →
+    updates DynamoDB with score and `Scored` status
+3.  Frontend polls GET /jobs periodically to show updated scores
 
 ### Lambda Functions
 
-- **`code/handler.py`** — API Lambda entry point; routes to `jobs.py` or `resumes.py`
-- **`code/worker.py`** — Worker Lambda; SQS-triggered scoring pipeline using Bedrock
-- **`code/jobs.py`** — Job CRUD logic
-- **`code/resumes.py`** — Resume CRUD logic
+-   **`code/handler.py`** --- API Lambda entry point; routes to
+    `jobs.py` or `resumes.py`
+-   **`code/worker.py`** --- Worker Lambda; SQS-triggered scoring
+    pipeline using Bedrock
+-   **`code/jobs.py`** --- Job CRUD logic
+-   **`code/resumes.py`** --- Resume CRUD logic
 
 ### Data Model (DynamoDB single-table)
 
-- `pk`: `USER#<user_id>`, `sk`: `RESUME#<id>` or `JOB#<id>`
+-   `pk`: `USER#<user_id>`, `sk`: `RESUME#<id>` or `JOB#<id>`
 
 ### S3 Layout (backend bucket)
 
-```
-users/USER#{id}/resumes/RESUME#{id}.txt
-users/USER#{id}/jobs/JOB#{id}/job_description.txt
-users/USER#{id}/jobs/JOB#{id}/resume_snapshot.txt
-users/USER#{id}/jobs/JOB#{id}/job_analysis.txt
-users/USER#{id}/jobs/JOB#{id}/notes.txt
-```
+    users/USER#{id}/resumes/RESUME#{id}.txt
+    users/USER#{id}/jobs/JOB#{id}/job_description.txt
+    users/USER#{id}/jobs/JOB#{id}/resume_snapshot.txt
+    users/USER#{id}/jobs/JOB#{id}/job_analysis.txt
+    users/USER#{id}/jobs/JOB#{id}/notes.txt
 
 ### Key Terraform Variables (`01-core/variables.tf`)
 
-- `region` — default `us-east-1`
-- `bedrock_model_id` — default `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
-- `frontend_bucket_base_name` / `backend_bucket_base_name`
+-   `region` --- default `us-east-1`
+-   `bedrock_model_id` --- default
+    `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
+-   `frontend_bucket_base_name` / `backend_bucket_base_name`
 
 ### Authentication
 
-Cognito User Pool with hosted UI, OAuth2 authorization code flow. All API routes require JWT Bearer token. Tokens stored in `localStorage` on the frontend.
+Cognito User Pool with hosted UI, OAuth2 authorization code flow. All
+API routes require JWT Bearer token. Tokens stored in `localStorage` on
+the frontend.
 
 ### Frontend Config
 
-`02-webapp/js/config.js.tmpl` is a template — `apply.sh` substitutes `API_BASE_URL`, `COGNITO_DOMAIN`, and `COGNITO_CLIENT_ID` at deploy time to produce `config.js`. Never edit `config.js` directly.
+`02-webapp/js/config.js.tmpl` is a template --- `apply.sh` substitutes
+`API_BASE_URL`, `COGNITO_DOMAIN`, and `COGNITO_CLIENT_ID` at deploy time
+to produce `config.js`. Never edit `config.js` directly.
+
+## Code Commenting Standards
+
+Claude should apply consistent, professional commenting when modifying
+code.
+
+### General Rules
+
+-   Keep comment lines **≤ 80 characters**
+-   Do **not change code behavior**
+-   Preserve existing variable names and structure
+-   Comments should explain **intent**, not restate obvious code
+-   Prefer concise, structured comments
+
+### Python Files
+
+Modules should begin with a structured header:
+
+    # ================================================================================
+    # Module Name
+    #
+    # Purpose
+    # Brief explanation of what this module does.
+    #
+    # Key Responsibilities
+    # - Responsibility 1
+    # - Responsibility 2
+    # ================================================================================
+
+Functions should include a short structured description:
+
+    # --------------------------------------------------------------------------------
+    # Function: function_name
+    #
+    # Purpose
+    # Explain what the function does.
+    #
+    # Arguments
+    # - arg_name : description
+    #
+    # Returns
+    # - description
+    # --------------------------------------------------------------------------------
+
+### Terraform Files
+
+Use section banners to describe infrastructure blocks:
+
+    # ================================================================================
+    # Section Name
+    # Description of resources created in this block
+    # ================================================================================
+
+Comments should explain **why infrastructure exists**, not repeat the
+resource definition.
