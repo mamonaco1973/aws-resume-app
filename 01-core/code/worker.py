@@ -432,8 +432,8 @@ Required JSON fields:
 Rules:
 - job_title: best extracted job title, or empty string if unknown
 - company_name: best extracted company name, or empty string if unknown
-- job_text: plain-text job description, maximum 400 words, include only
-  role responsibilities and candidate requirements
+- job_text: plain-text job description, maximum 3000 characters, include
+  only role responsibilities and candidate requirements
 - Do not wrap the response in markdown
 - Do not include any explanation
 
@@ -443,7 +443,7 @@ SOURCE TEXT:
 
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 800,
+        "max_tokens": 1000,
         "temperature": 0,
         "messages": [
             {
