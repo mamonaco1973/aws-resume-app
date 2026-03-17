@@ -36,6 +36,7 @@ import urllib.request
 from datetime import datetime, timezone
 
 import boto3
+from botocore.config import Config
 from bs4 import BeautifulSoup, Comment
 
 # =================================================================================
@@ -52,7 +53,10 @@ logger.setLevel(logging.INFO)
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ["TABLE_NAME"])
 
-bedrock_runtime = boto3.client("bedrock-runtime")
+bedrock_runtime = boto3.client(
+    "bedrock-runtime",
+    config=Config(read_timeout=240, connect_timeout=10),
+)
 s3 = boto3.client("s3")
 
 # =================================================================================
@@ -68,6 +72,11 @@ BEDROCK_MODEL_ID = os.environ["BEDROCK_MODEL_ID"]
 
 MAX_SOURCE_TEXT_CHARS = 120000
 MIN_JOB_TEXT_CHARS = 100
+
+# Bedrock read timeout in seconds. Set below the Lambda timeout (300s) so a
+# slow or hung model call raises a catchable exception rather than letting
+# Lambda terminate the process before the error status can be written.
+BEDROCK_READ_TIMEOUT_SECONDS = 240
 
 # Tags that generally do not contain useful job-description content.
 REMOVE_TAGS = {

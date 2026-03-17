@@ -53,7 +53,7 @@ resource "aws_lambda_function" "worker" {
 
   role = aws_iam_role.lambda_exec.arn
 
-  timeout     = 60
+  timeout     = 300
   memory_size = 512
 
   environment {

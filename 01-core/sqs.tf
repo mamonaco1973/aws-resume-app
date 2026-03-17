@@ -22,7 +22,7 @@ resource "aws_sqs_queue" "job_requests_dlq" {
 resource "aws_sqs_queue" "job_requests" {
   name = "job-requests"
 
-  visibility_timeout_seconds = 300
+  visibility_timeout_seconds = 1800
   message_retention_seconds  = 345600
   receive_wait_time_seconds  = 20
 
