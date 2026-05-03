@@ -30,43 +30,47 @@ Follow along and build a complete serverless AI app on AWS using Bedrock, Lambda
 
 [ Diagram then Congito ]
 
-"First, the user signs into the web application using Cognito."
+First, the user signs in to the web application using Cognito.
 
-[ Choose File then Diagam ]
+[ Manage Resumes Dialog ]
 
-"When the user selects “Choose File”, the image is uploaded to an S3 bucket."
+Before scoring any jobs, you upload your resume.
 
-[  Cartoonify ]
+[ Upload Flow ]
 
-When the user selects “Cartoonify”, the API does two things:
+The resume is stored in the application’s S3 bucket.
+
+[  Score Dialog ]
+
+Now you can submit a job for scoring — either by URL or raw text.
 
 [ Highlight Dynamo DB]
 
-It creates a job record in DynamoDB
+When you click Submit, a job record is created in DynamoDB
 
 [ Highlight SQS queue ]
 
-Then it sends a message to the image processing SQS queue.
+At the same time, a message is sent to the scoring queue.
 
 [ Highlight Lambda ]
 
-"SQS triggers the worker Lambda."
+That queue triggers the worker Lambda.
 
 [ Show bedrock ]
 
-"The worker Lambda calls Bedrock to generate the cartoon."
+The worker calls Bedrock to extract the job details and score the resume.
 
 [ Show S3 Media Bucket]
 
-"The generated image is written back to S3".
+The scoring results and analysis are written back to S3.
 
 [ Final Dynamo DB State]
 
-When processing completes, the job status is updated in DynamoDB.
+The job status is updated in DynamoDB.
 
 [ Show final result ]
 
-The web application refreshes and displays the generated image.
+The application refreshes and displays the completed results.
 
 ---
 
@@ -74,51 +78,47 @@ The web application refreshes and displays the generated image.
 
 [ Show Buckets ]
 
-Three storage buckets are created for this project.
+Two S3 buckets are created for this project.
 
 [ Web Bucket ]
 
-The first bucket hosts the public web application.
+The first hosts the public web application.
 
 [ Media Bucket]
 
-The second bucket stores the uploaded source images and generated cartoons.
-
-[ CLoud Functions Bucket ]
-
-The third bucket stores the Cloud Functions source code.
+The second stores résumé  and scoring results.
 
 [ Show Identity ]
 
-Identity and access are handled by Google Identity Platform and API Gateway.
+Authentication is handled by Cognito and enforced by API Gateway.
 
-[Show Cloud Functions] 
+[Show Lambda Functions] 
 
-The serverless API is implemented with Python Cloud Functions.
+The API is implemented with Python Lambda functions.
 
-[ Pub/Sub]
+[ SQS ]
 
-The image generation pipeline is driven by a Pub Sub topic.
+Job scoring is driven by an SQS queue.
 
 [ Fire Store ]
 
-Firestore stores the status of each image generation job.
+DynamoDB tracks the state of each scoring job.
 
 [ Show Worker Function ]
 
-When a message is processed, the worker function calls Vertex AI to generate the cartoon image.
+When a message is received, the worker Lambda calls Bedrock to extract and score the job.
 
 [ Show Media Bucket ]
 
-The generated image is written back to the media bucket.
+The results are written back to S3.
 
-[ Show Firestore completion record]
+[ Show DynamoDB completion record]
 
-The Firestore job record is updated to complete.
+The job status is updated to “scored”.
 
 [ Show Web Application ]
 
-When the application refreshes, the generated results are displayed.
+The application refreshes and displays the results.
 
 ---
 
@@ -132,27 +132,42 @@ When the application refreshes, the generated results are displayed.
 
 "Sign in using Cognito."
 
-[ Choose File ]
+[ Choose Manage Resumes button ]
 
-"Once signed in, select “Choose File” and upload a test image."
+Once signed in, open Manage Resumes
 
-[ Pencil Sketch]
+[ Show Manage Resume Dialog ]
 
-"Select the “Pencil Sketch” style, then click “Cartoonify” to start the image generation pipeline."
+Paste your resume and click Create Resume.
 
-[ Show Life Cycle ]
+[ Select Score New Job button]
 
-"The application displays the image generation lifecycle."
+Now select Score New Job.
+
+[ Show Score New Job Dialog ]
+
+Choose LinkedIn as the source and enter one or more job IDs.
+
+[ Show Submit Button ]
+
+Click Submit to start scoring.
+
+[ Show Status ]
+
+The dashboard updates as jobs move from submitted to scoring.
+
+All jobs are tracked here with their current status and scores.
 
 [ Show Results ]
 
-"When processing completes, the application refreshes and shows the result."
+Click Open to view the full analysis.
 
-[ Show Styles ]
+[ Show bad job ]
 
-"Now try some different styles. 
+This one’s clearly not a good fit. 
 
-[ Show Gallery ]
-The application displays a gallery of your previous results."
+[Show better job ]
+
+Now here’s a role that aligns much better.
 
 ---

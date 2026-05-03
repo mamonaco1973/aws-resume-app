@@ -1,41 +1,40 @@
 #AWS #Serverless #AWSLambda #Bedrock #SQS #DynamoDB #APIGateway #Cognito #Terraform #Python #GenerativeAI
 
-*Build an AI Image Pipeline on AWS (Bedrock + Lambda + SQS)*
+*Build an AI Resume Scorer on AWS (Bedrock + Lambda + SQS)*
 
-Turn any photo into a cartoon using a fully serverless, event-driven pipeline on AWS — provisioned with Terraform and deployed with a single script. Users sign in with Cognito, upload a photo, pick a cartoon style, and a queue-driven worker invokes Amazon Bedrock's Stability image model to generate a stylized result. Originals and cartoons are stored privately in S3 and served through short-lived presigned URLs.
+Score any resume against a job posting using a fully serverless, event-driven pipeline on AWS — provisioned with Terraform and deployed with a single script. Users sign in with Cognito, upload a resume, paste a job URL or description, and a queue-driven worker invokes Amazon Bedrock's Claude Haiku model to extract job metadata and return a 0–100 compatibility score with a written Strengths and Weaknesses analysis.
 
-In this project we build an asynchronous AI image-processing pipeline from scratch — the browser uploads directly to S3, SQS decouples the slow Bedrock inference call from the API response, and a container-image Lambda running Pillow normalizes the photo before sending it to Bedrock. The whole thing runs without a single EC2 instance.
+In this project we build an asynchronous AI scoring pipeline from scratch — the API returns immediately with a submitted status, SQS decouples the slow Bedrock inference call from the API response, and a worker Lambda handles URL fetching, HTML parsing, and two sequential Bedrock calls. The whole thing runs without a single EC2 instance.
 
 WHAT YOU'LL LEARN
-• Invoking Amazon Bedrock image models (Stability stable-image-control-structure-v1:0) from Lambda
+• Invoking Amazon Bedrock text models (Claude Haiku) from Lambda for multi-step AI pipelines
 • Using SQS to decouple a slow AI inference call from a synchronous API response
-• Running a container-image Lambda (ECR) with Pillow for image normalization
+• Fetching and parsing job posting HTML with BeautifulSoup before sending to Bedrock
 • Implementing PKCE OAuth2 Authorization Code flow with Cognito in a static SPA
 • Attaching a JWT authorizer to API Gateway HTTP API v2
-• Generating presigned S3 POST URLs with content-type and size enforcement
-• Enforcing per-user daily quotas with a DynamoDB range query — no GSI required
-• Proactive JWT token refresh using the Cognito /oauth2/token endpoint
+• Single-table DynamoDB design with composite keys for per-user data isolation
+• Storing and retrieving user content (resumes, analyses, notes) from private S3 paths
+• Parameterizing a Bedrock model via bedrock-config.sh for easy model swapping
 
 INFRASTRUCTURE DEPLOYED
 • Cognito User Pool with Hosted UI domain and SPA app client (PKCE, no secret)
-• API Gateway HTTP API v2 with JWT authorizer (validates against Cognito JWKS)
-• Five zip-packaged API Lambdas (Python 3.11): upload-url, submit, result, history, delete
-• Worker Lambda (container image from ECR, 2048 MB, 120 s timeout) triggered by SQS
-• SQS queue (cartoonify-jobs, visibility timeout 180 s, batch size 1)
-• DynamoDB table (PAY_PER_REQUEST, PK=owner, SK=job_id time-sortable, 7-day TTL)
-• S3 web bucket (public SPA hosting) + S3 media bucket (private, 7-day lifecycle)
-• ECR repository for the worker container image
-• IAM roles scoped per Lambda — API role cannot invoke Bedrock; worker role cannot delete
+• API Gateway HTTP API with JWT authorizer (validates against Cognito JWKS)
+• API Lambda (Python 3.11, handler.py): routes /resumes and /jobs endpoint families
+• Worker Lambda (Python 3.11, worker.py, 512 MB, 300 s timeout) triggered by SQS
+• SQS queue (job-requests, visibility timeout 1800 s) + dead-letter queue
+• DynamoDB table (PAY_PER_REQUEST, PK=USER#<id>, SK=RESUME#<id> or JOB#<id>)
+• S3 frontend bucket (public SPA hosting) + S3 backend bucket (private, SSE-AES256)
+• IAM roles with least-privilege access to DynamoDB, S3, SQS, Bedrock, and CloudWatch
 
 GitHub
-https://github.com/mamonaco1973/aws-cartoonify
+https://github.com/mamonaco1973/aws-resume-app
 
 README
-https://github.com/mamonaco1973/aws-cartoonify/blob/main/README.md
+https://github.com/mamonaco1973/aws-resume-app/blob/main/README.md
 
 TIMESTAMPS
 00:00 Introduction
-00:14 Architecture
-00:49 Build the Code
-01:05 Build Results
-01:49 Demo
+00:21 Architecture
+00:59 Build the Code
+01:16 Build Results
+01:52 Demo
