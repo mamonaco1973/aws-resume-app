@@ -38,7 +38,7 @@ echo "NOTE: Successfully logged into AWS."
 
 # Bedrock model ID is set by apply.sh (single source of truth). The fallback
 # here only applies if check_env.sh is run standalone.
-BEDROCK_MODEL_ID="${BEDROCK_MODEL_ID:-us.anthropic.claude-sonnet-4-5-20250929-v1:0}"
+BEDROCK_MODEL_ID="${BEDROCK_MODEL_ID:-us.anthropic.claude-haiku-4-5-20251001-v1:0}"
 
 echo "NOTE: Checking Bedrock inference profile ${BEDROCK_MODEL_ID} in ${REGION}."
 

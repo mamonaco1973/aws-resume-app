@@ -10,7 +10,7 @@ authentication**, allowing users to upload resumes and submit job postings for
 compatibility scoring — all without running or managing any EC2 instances.
 
 Users submit a resume and a job posting (as a URL or raw text). The application
-uses **AWS Bedrock (Claude Sonnet)** to extract structured job metadata and score
+uses **AWS Bedrock (Claude Haiku)** to extract structured job metadata and score
 the resume against the job on a scale of 0–100, with a written analysis broken
 into **Strengths** and **Weaknesses** sections.
 
@@ -25,18 +25,18 @@ Cognito's Hosted UI and interacts directly with the secured API, allowing
 authenticated users to manage resumes, submit jobs for scoring, and review
 AI-generated analysis from a browser.
 
-![diagram](aws-resume-app.png)
-
 This design follows a **serverless event-driven architecture** where API Gateway
 routes authenticated requests to Lambda, SQS decouples job submission from
 scoring, and Bedrock handles AI inference on demand — with AWS managing scaling,
 availability, and fault tolerance automatically.
 
----
+The Bedrock model is fully parameterized — see
+[Changing the Bedrock Model](#changing-the-bedrock-model). Swapping models
+requires only editing one export line in `bedrock-config.sh`.
 
 ## Key Capabilities Demonstrated
 
-1. **AI-Powered Resume Scoring** – AWS Bedrock (Claude Sonnet) extracts job
+1. **AI-Powered Resume Scoring** – AWS Bedrock (Claude Haiku) extracts job
    metadata and scores resume-to-job compatibility (0–100) with a written
    Strengths/Weaknesses analysis.
 2. **Asynchronous Job Processing** – SQS decouples job submission from scoring.
@@ -54,7 +54,142 @@ availability, and fault tolerance automatically.
 7. **Browser-Based Frontend** – A static S3-hosted SPA demonstrates the full
    OAuth2 authorization code flow and real-time polling for scoring results.
 
----
+## Architecture
+
+![diagram](aws-resume-app.png)
+
+## Prerequisites
+
+* [An AWS Account](https://aws.amazon.com/console/) with Bedrock enabled
+* [Install AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+* [Install Terraform](https://developer.hashicorp.com/terraform/install)
+* [Install Python 3.11+](https://www.python.org/downloads/)
+* [Install jq](https://jqlang.github.io/jq/download/)
+* **Bedrock model access enabled** for `us.anthropic.claude-haiku-4-5-20251001-v1:0`
+  in the Bedrock console:
+  https://console.aws.amazon.com/bedrock/home?region=us-east-1#/modelaccess
+
+Region is hardcoded to `us-east-1` — the `us.*` cross-region inference profile
+routes Bedrock calls from there across `us-east-1`, `us-east-2`, and
+`us-west-2`.
+
+If this is your first time using AWS with Terraform, we recommend starting with
+this video:  
+**[AWS + Terraform: Easy Setup](https://www.youtube.com/watch?v=9clW3VQLyxA)**
+– it walks through configuring your AWS credentials, Terraform backend, and
+CLI environment.
+
+## Download this Repository
+
+```bash
+git clone https://github.com/mamonaco1973/aws-resume-app.git
+cd aws-resume-app
+```
+
+## Build the Code
+
+Run [check_env](check_env.sh) to validate your environment, then run
+[apply](apply.sh) to provision all infrastructure and deploy the frontend.
+
+```bash
+~/aws-resume-app$ ./apply.sh
+NOTE: Running environment validation...
+NOTE: Validating that required commands are found in your PATH.
+NOTE: aws is found in the current PATH.
+NOTE: terraform is found in the current PATH.
+NOTE: jq is found in the current PATH.
+NOTE: pip is found in the current PATH.
+NOTE: Successfully logged into AWS.
+NOTE: Checking Bedrock inference profile us.anthropic.claude-haiku-4-5-20251001-v1:0 in us-east-1.
+NOTE: Testing Bedrock model invocation...
+NOTE: Bedrock invocation access confirmed.
+...
+=================================================================================
+  Resume Scorer — Deployment validated!
+=================================================================================
+  App : https://resume-app-<hex>.s3-website-us-east-1.amazonaws.com/index.html
+  API : https://<api-id>.execute-api.us-east-1.amazonaws.com
+  Auth: https://resume-app-<hex>.auth.us-east-1.amazoncognito.com
+=================================================================================
+```
+
+`apply.sh` performs the following steps in order:
+
+1. Runs `check_env.sh` to validate required CLI tools, AWS credentials, and Bedrock access
+2. Installs Python Lambda dependencies into `01-core/code/`
+3. Runs `terraform init` and `terraform apply` to provision all AWS resources
+4. Reads Terraform outputs and writes `02-webapp/js/config.js` from the template
+5. Syncs the frontend to the S3 static website bucket
+
+### Build Results
+
+When the deployment completes, the following resources are created:
+
+- **Core Infrastructure:**
+  - Fully serverless architecture — no EC2 instances, containers, or VPC
+    networking required
+  - Terraform-managed provisioning of all AWS resources in a single apply
+  - Asynchronous scoring pipeline decoupled via SQS for reliable processing
+
+- **Security, Identity & IAM:**
+  - **Amazon Cognito User Pool** providing managed user authentication and
+    JWT token issuance with email-based sign-up and verification
+  - API Gateway **JWT authorizer** validating Cognito tokens before invoking
+    Lambda
+  - IAM roles scoped to least-privilege for DynamoDB, S3, SQS, Bedrock,
+    and CloudWatch access
+  - No long-lived credentials embedded in application code
+
+- **Amazon DynamoDB Table:**
+  - Single-table design storing both resumes and jobs for each user
+  - Partition key `USER#<id>` and sort key `RESUME#<id>` / `JOB#<id>`
+    provide per-user data isolation without a secondary index
+  - On-demand capacity mode for automatic scaling and cost efficiency
+
+- **AWS Lambda Functions:**
+  - **API Lambda** (`handler.py`) — routes all API Gateway requests to
+    `resumes.py` or `jobs.py` handler modules
+  - **Worker Lambda** (`worker.py`) — SQS-triggered; fetches job URLs,
+    calls Bedrock for extraction and scoring, writes results to S3 and
+    DynamoDB
+
+- **Amazon SQS:**
+  - Main queue receives job scoring requests from the API Lambda
+  - Dead-letter queue captures messages that fail after maximum retries
+  - Visibility timeout aligned to the worker Lambda timeout to prevent
+    duplicate processing
+
+- **AWS Bedrock (Claude Haiku):**
+  - **Extraction call** — given raw page text or a job URL, extracts
+    `job_title`, `company_name`, and a cleaned `job_text` (capped at
+    3000 characters)
+  - **Scoring call** — scores the resume against the cleaned job
+    description (0–100) with a written analysis covering Overview,
+    Strengths, and Weaknesses
+
+- **Amazon S3:**
+  - **Backend bucket** — stores resume text, job descriptions, resume
+    snapshots, job analyses, and user notes at deterministic per-job paths;
+    private, SSE-AES256 encrypted
+  - **Frontend bucket** — hosts the static SPA with public read access
+    and S3 website hosting enabled
+
+- **Amazon API Gateway:**
+  - HTTP API exposing `/resumes` and `/jobs` endpoint families
+  - Cognito JWT authorizer enforces authentication on all routes
+  - AWS proxy integration passes full request context to the API Lambda
+
+- **Static Web Application (S3):**
+  - Vanilla JavaScript SPA with no build step or framework dependencies
+  - Integrates with Cognito Hosted UI for OAuth2 authorization code flow
+  - Polls `GET /jobs` to surface scoring results as they complete
+  - `config.js` is generated at deploy time from a template — never
+    edited directly
+
+Together, these resources form a **secure, AI-powered serverless application**
+that demonstrates modern AWS architecture principles — **event-driven,
+fully managed, and identity-aware** — with all AI inference handled on demand
+through AWS Bedrock.
 
 ## API Gateway Endpoints
 
@@ -219,149 +354,41 @@ until `status` is `Scored` or `Error`.
 
 ---
 
-## Prerequisites
+## Changing the Bedrock Model
 
-* [An AWS Account](https://aws.amazon.com/console/)
-* [Install AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
-* [Install Terraform](https://developer.hashicorp.com/terraform/install)
-* [Install Python 3.11+](https://www.python.org/downloads/)
-* [Install jq](https://jqlang.github.io/jq/download/)
-
-If this is your first time following along, we recommend starting with this video:
-**[AWS + Terraform: Easy Setup](https://www.youtube.com/watch?v=9clW3VQLyxA)** — it walks through configuring your AWS credentials, Terraform backend, and CLI environment.
-
-> **Note:** AWS Bedrock model access must be enabled in your account for
-> `us.anthropic.claude-sonnet-4-5-20250929-v1:0` before deploying. Enable it
-> in the [Bedrock Model Access console](https://console.aws.amazon.com/bedrock/home#/modelaccess).
-
----
-
-## Download this Repository
+The model is parameterized end-to-end. To retarget, edit the `export` line in
+[bedrock-config.sh](bedrock-config.sh) — sourced by both `apply.sh` and
+`destroy.sh`:
 
 ```bash
-git clone https://github.com/mamonaco1973/aws-resume-app.git
-cd aws-resume-app
+export BEDROCK_MODEL_ID="us.anthropic.claude-haiku-4-5-20251001-v1:0"
 ```
 
----
+This value flows automatically to:
 
-## Build the Code
+- **`check_env.sh`** — pre-flight probe that the inference profile is accessible
+  before any Terraform runs
+- **`01-core/` Terraform** — worker Lambda `BEDROCK_MODEL_ID` environment variable
+- **`01-core/code/worker.py`** — reads `BEDROCK_MODEL_ID` at runtime and passes
+  it to `bedrock.invoke_model`
 
-Run [check_env](check_env.sh) to validate your environment, then run
-[apply](apply.sh) to provision all infrastructure and deploy the frontend.
+If the new model uses a different request/response schema, also update the
+prompt payloads in [01-core/code/worker.py](01-core/code/worker.py).
 
-```bash
-~/aws-resume-app$ ./apply.sh
-NOTE: Running environment validation...
-NOTE: Validating that required commands are found in your PATH.
-NOTE: aws is found in the current PATH.
-NOTE: terraform is found in the current PATH.
-NOTE: jq is found in the current PATH.
-NOTE: All required commands are available.
-NOTE: Checking AWS cli connection.
-NOTE: Successfully logged into AWS.
-
-Initializing the backend...
-```
-
-`apply.sh` performs the following steps in order:
-
-1. Runs `check_env.sh` to validate required CLI tools
-2. Installs Python Lambda dependencies into `01-core/code/`
-3. Runs `terraform init` and `terraform apply` to provision all AWS resources
-4. Reads Terraform outputs and writes `02-webapp/js/config.js` from the template
-5. Syncs the frontend to the S3 static website bucket
-
-To tear down all resources:
+## Destroy
 
 ```bash
 ./destroy.sh
 ```
 
----
-
-### Build Results
-
-When the deployment completes, the following resources are created:
-
-- **Core Infrastructure:**
-  - Fully serverless architecture — no EC2 instances, containers, or VPC
-    networking required
-  - Terraform-managed provisioning of all AWS resources in a single apply
-  - Asynchronous scoring pipeline decoupled via SQS for reliable processing
-
-- **Security, Identity & IAM:**
-  - **Amazon Cognito User Pool** providing managed user authentication and
-    JWT token issuance with email-based sign-up and verification
-  - API Gateway **JWT authorizer** validating Cognito tokens before invoking
-    Lambda
-  - IAM roles scoped to least-privilege for DynamoDB, S3, SQS, Bedrock,
-    and CloudWatch access
-  - No long-lived credentials embedded in application code
-
-- **Amazon DynamoDB Table:**
-  - Single-table design storing both resumes and jobs for each user
-  - Partition key `USER#<id>` and sort key `RESUME#<id>` / `JOB#<id>`
-    provide per-user data isolation without a secondary index
-  - On-demand capacity mode for automatic scaling and cost efficiency
-
-- **AWS Lambda Functions:**
-  - **API Lambda** (`handler.py`) — routes all API Gateway requests to
-    `resumes.py` or `jobs.py` handler modules
-  - **Worker Lambda** (`worker.py`) — SQS-triggered; fetches job URLs,
-    calls Bedrock for extraction and scoring, writes results to S3 and
-    DynamoDB
-
-- **Amazon SQS:**
-  - Main queue receives job scoring requests from the API Lambda
-  - Dead-letter queue captures messages that fail after maximum retries
-  - Visibility timeout aligned to the worker Lambda timeout to prevent
-    duplicate processing
-
-- **AWS Bedrock (Claude Sonnet):**
-  - **Extraction call** — given raw page text or a job URL, extracts
-    `job_title`, `company_name`, and a cleaned `job_text` (capped at
-    3000 characters)
-  - **Scoring call** — scores the resume against the cleaned job
-    description (0–100) with a written analysis covering Overview,
-    Strengths, and Weaknesses
-
-- **Amazon S3:**
-  - **Backend bucket** — stores resume text, job descriptions, resume
-    snapshots, job analyses, and user notes at deterministic per-job paths;
-    private, SSE-AES256 encrypted
-  - **Frontend bucket** — hosts the static SPA with public read access
-    and S3 website hosting enabled
-
-- **Amazon API Gateway:**
-  - HTTP API exposing `/resumes` and `/jobs` endpoint families
-  - Cognito JWT authorizer enforces authentication on all routes
-  - AWS proxy integration passes full request context to the API Lambda
-
-- **Static Web Application (S3):**
-  - Vanilla JavaScript SPA with no build step or framework dependencies
-  - Integrates with Cognito Hosted UI for OAuth2 authorization code flow
-  - Polls `GET /jobs` to surface scoring results as they complete
-  - `config.js` is generated at deploy time from a template — never
-    edited directly
-
-- **Automation:**
-  - `apply.sh` — full deploy: env check, pip install, Terraform apply,
-    config generation, S3 sync
-  - `destroy.sh` — full teardown of all provisioned resources
-  - `check_env.sh` — validates required CLI tools before deployment
-
-Together, these resources form a **secure, AI-powered serverless application**
-that demonstrates modern AWS architecture principles — **event-driven,
-fully managed, and identity-aware** — with all AI inference handled on demand
-through AWS Bedrock.
-
----
+Tears down all infrastructure provisioned by `apply.sh`, including Lambda
+functions, API Gateway, Cognito User Pool, DynamoDB table, SQS queues, and
+S3 buckets.
 
 ## Using the Application
 
-Once deployed, open the **Frontend URL** printed by `validate.sh` in your
-browser. The full workflow is:
+Once deployed, open the **App URL** printed by `validate.sh` in your browser.
+The full workflow is:
 
 ### 1. Sign In
 
@@ -437,5 +464,3 @@ Click **Delete** on any row in the dashboard to permanently remove the job
 record and all associated S3 artifacts (job description, resume snapshot,
 analysis, and notes). This action is confirmed via a prompt and cannot be
 undone.
-
----
