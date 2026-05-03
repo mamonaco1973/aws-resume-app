@@ -1,4 +1,4 @@
-#AWS #Serverless #AWSLambda #Bedrock #SQS #DynamoDB #APIGateway #Cognito #Terraform #Python #GenerativeAI
+#AWS #Bedrock #GenerativeAI #Serverless #AWSLambda
 
 *Build an AI Resume Scorer on AWS (Bedrock + Lambda + SQS)*
 
