@@ -12,4 +12,4 @@
 #   • 01-core       — worker Lambda BEDROCK_MODEL_ID env var (via Terraform var)
 # ==============================================================================
 
-export BEDROCK_MODEL_ID="us.anthropic.claude-haiku-4-5-20251001"
+export BEDROCK_MODEL_ID="us.anthropic.claude-haiku-4-5-20251001-v1:0"

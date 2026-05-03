@@ -4,17 +4,21 @@
 
 ## Introduction
 
-[ Opening Sequence ]
+[ Show LinkedIn scoring ]
 
-“Do you want to build an AI-powered image pipeline on AWS?”
+Most AI resume tools score one job at a time.
 
-[ Show Diagram ]
+[ Other Job Platforms ]
 
-"In this project, we build a fully serverless pipeline that turns photos into cartoons using AWS and Bedrock."
+But real job searches don’t work like that — you’re tracking dozens across multiple sites.
 
-[ Build B Roll ]
+[ Dashboard ]
 
-Follow along and in minutes you’ll have a fully working AI pipeline running on AWS.
+In this project, we build an AI-powered dashboard to upload your resume, track applications, and score every job in one place.
+
+[ B Roll ]
+
+Follow along and build a complete serverless AI app on AWS using Bedrock, Lambda, and SQS.
 
 ---
 
