@@ -1,53 +1,27 @@
 #!/bin/bash
-# ================================================================================
+# ==============================================================================
 # validate.sh
-#
-# Purpose
-# Post-deploy validation for the AWS Bedrock Resume Scoring application.
-# Reads Terraform outputs and prints a quick-start summary of all key
-# endpoints, bucket names, and Cognito configuration.
-#
-# Requirements
-# - terraform CLI installed and authenticated
-# - AWS credentials configured
-# - Terraform state must exist (run apply.sh first)
-# ================================================================================
+# ==============================================================================
+# Prints the app URL, API endpoint, and Cognito config after apply.sh completes.
+# ==============================================================================
 
+export AWS_DEFAULT_REGION="us-east-1"
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TF_DIR="${SCRIPT_DIR}/01-core"
+APP_URL=$(terraform -chdir=01-core output -raw frontend_website_url 2>/dev/null || true)
+API_BASE=$(terraform -chdir=01-core output -raw api_endpoint          2>/dev/null || true)
+COGNITO_UI=$(terraform -chdir=01-core output -raw cognito_hosted_ui_base 2>/dev/null || true)
 
-# ================================================================================
-# Read Terraform outputs
-# ================================================================================
-
-cd "${TF_DIR}"
-
-API_ENDPOINT="$(terraform output -raw api_endpoint 2>/dev/null || echo '<not found>')"
-FRONTEND_URL="$(terraform output -raw frontend_website_url 2>/dev/null || echo '<not found>')/index.html"
-FRONTEND_BUCKET="$(terraform output -raw frontend_bucket_name 2>/dev/null || echo '<not found>')"
-COGNITO_POOL_ID="$(terraform output -raw cognito_user_pool_id 2>/dev/null || echo '<not found>')"
-COGNITO_CLIENT_ID="$(terraform output -raw cognito_user_pool_client_id 2>/dev/null || echo '<not found>')"
-COGNITO_HOSTED_UI="$(terraform output -raw cognito_hosted_ui_base 2>/dev/null || echo '<not found>')"
-
-# ================================================================================
-# Quick Start Output
-# ================================================================================
+if [ -z "${APP_URL}" ] || [ -z "${API_BASE}" ]; then
+  echo "ERROR: Could not read Terraform outputs. Run ./apply.sh first."
+  exit 1
+fi
 
 echo ""
-echo "============================================================================"
-echo "AWS Bedrock Scoring App - Quick Start"
-echo "============================================================================"
-echo ""
-
-printf "%-28s %s\n" "NOTE: Frontend URL:"        "${FRONTEND_URL}"
-printf "%-28s %s\n" "NOTE: API Endpoint:"        "${API_ENDPOINT}"
-echo ""
-printf "%-28s %s\n" "NOTE: Frontend Bucket:"     "${FRONTEND_BUCKET}"
-echo ""
-printf "%-28s %s\n" "NOTE: Cognito Pool ID:"     "${COGNITO_POOL_ID}"
-printf "%-28s %s\n" "NOTE: Cognito Client ID:"   "${COGNITO_CLIENT_ID}"
-printf "%-28s %s\n" "NOTE: Cognito Hosted UI:"   "${COGNITO_HOSTED_UI}"
-
-echo ""
+echo "================================================================================="
+echo "  Resume Scorer — Deployment validated!"
+echo "================================================================================="
+echo "  App : ${APP_URL}/index.html"
+echo "  API : ${API_BASE}"
+echo "  Auth: ${COGNITO_UI}"
+echo "================================================================================="

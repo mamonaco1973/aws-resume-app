@@ -25,6 +25,14 @@
 export AWS_DEFAULT_REGION="us-east-1"
 
 # ------------------------------------------------------------------------------
+# BEDROCK MODEL CONFIGURATION
+# ------------------------------------------------------------------------------
+# Exports BEDROCK_MODEL_ID so check_env.sh probes the correct model.
+# Also passed to Terraform so the worker Lambda env var stays in sync.
+# ------------------------------------------------------------------------------
+source "$(dirname "$0")/bedrock-config.sh"
+
+# ------------------------------------------------------------------------------
 # STRICT SHELL EXECUTION MODE
 # ------------------------------------------------------------------------------
 # Enforces defensive shell behavior:
@@ -76,7 +84,7 @@ pip install -r requirements.txt -t .
 cd ..
 
 terraform init
-terraform apply -auto-approve
+terraform apply -auto-approve -var="bedrock_model_id=${BEDROCK_MODEL_ID}"
 
 export API_BASE_URL=$(terraform output -raw api_endpoint)
 export BUCKET_NAME=$(terraform output -raw frontend_bucket_name)

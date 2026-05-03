@@ -1,80 +1,79 @@
-<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" scale="1" border="15" version="29.6.4">
-  <diagram id="Ht1M8jgEwFfnCIfOTk4-" name="Page-1">
-    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+<mxfile host="app.diagrams.net" agent="resume-arch">
+  <diagram id="resume-arch" name="Architecture">
+    <mxGraphModel grid="1" page="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" pageScale="1" pageWidth="1000" pageHeight="520" background="none" math="0" shadow="1">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="cloud" parent="1" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=16;fontStyle=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=#232F3E;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#232F3E;dashed=0;labelBackgroundColor=#ffffff;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;" value="AWS Cloud" vertex="1">
-          <mxGeometry height="990" width="1800" x="60" y="40" as="geometry" />
+        <mxCell id="aws-border" parent="1" style="whiteSpace=wrap;fillColor=none;rounded=0;labelBackgroundColor=none;fontColor=none;noLabel=1;strokeColor=#232F3E;dashed=1;" value="" vertex="1">
+          <mxGeometry height="430" width="800" x="170" y="40" as="geometry" />
         </mxCell>
-        <mxCell id="region" parent="cloud" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];outlineConnect=0;gradientColor=none;html=1;whiteSpace=wrap;fontSize=16;fontStyle=0;container=1;pointerEvents=0;collapsible=0;recursiveResize=0;shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_region;strokeColor=#00A4A6;fillColor=none;verticalAlign=top;align=left;spacingLeft=30;fontColor=#147EBA;dashed=1;" value="US-EAST-1" vertex="1">
-          <mxGeometry height="930" width="1760" x="20" y="30" as="geometry" />
+        <mxCell id="aws-label" parent="1" style="shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=none;fillColor=none;fontColor=light-dark(#000000, #bdc7d4);fontSize=14;align=left;labelPosition=right;verticalLabelPosition=middle;verticalAlign=middle;spacing=8;html=1;points=[];textShadow=1;" value="AWS Cloud — us-east-1" vertex="1">
+          <mxGeometry height="26.25" width="32" x="170" y="10" as="geometry" />
         </mxCell>
-        <mxCell id="s3-frontend" parent="region" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#3F8624;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=24;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;" value="Frontend SPA&#xa;S3 Static Website" vertex="1">
-          <mxGeometry height="120" width="120" x="60" y="80" as="geometry" />
+        <mxCell id="browser" parent="1" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=16;image=img/lib/azure2/general/Browser.svg;labelBackgroundColor=none;verticalLabelPosition=bottom;verticalAlign=top;textShadow=1;labelBorderColor=none;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;Browser (SPA)&lt;/font&gt;" vertex="1">
+          <mxGeometry height="50" width="57" x="60" y="220" as="geometry" />
         </mxCell>
-        <mxCell id="cognito" parent="region" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#DD344C;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=24;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cognito;" value="Amazon Cognito" vertex="1">
-          <mxGeometry height="120" width="120" x="430" y="80" as="geometry" />
+        <mxCell id="cognito" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#DD344C;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cognito;textShadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;Cognito&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;Hosted UI&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="50" x="220" y="80" as="geometry" />
         </mxCell>
-        <mxCell id="user" parent="region" style="outlineConnect=0;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;shape=mxgraph.aws3.user;fillColor=#D2D3D3;gradientColor=none;fontSize=24;" value="User" vertex="1">
-          <mxGeometry height="126" width="90" x="75" y="370" as="geometry" />
+        <mxCell id="api" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#CC2264;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=14;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;textShadow=1;" value="API Gateway" vertex="1">
+          <mxGeometry height="50" width="50" x="320" y="220" as="geometry" />
         </mxCell>
-        <mxCell id="apigw" parent="region" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#D9A741;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=24;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;" value="Resume Scoring API&#xa;API Gateway" vertex="1">
-          <mxGeometry height="120" width="120" x="430" y="370" as="geometry" />
+        <mxCell id="dynamodb" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#3334B9;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=14;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;textShadow=1;" value="DynamoDB&lt;div&gt;App Table&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="50" x="530" y="80" as="geometry" />
         </mxCell>
-        <mxCell id="api-lambda" parent="region" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#ED7100;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=24;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" value="API Lambda&#xa;handler.py" vertex="1">
-          <mxGeometry height="120" width="120" x="760" y="370" as="geometry" />
+        <mxCell id="s3-backend" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#7AA116;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=14;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;textShadow=1;" value="S3 Backend&lt;div&gt;resumes + jobs&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="50" x="530" y="220" as="geometry" />
         </mxCell>
-        <mxCell id="s3-backend" parent="region" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#3F8624;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=24;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;" value="Backend Bucket&#xa;S3" vertex="1">
-          <mxGeometry height="120" width="120" x="1090" y="370" as="geometry" />
+        <mxCell id="sqs" parent="1" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#000000;fillColor=#E7157B;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=11;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sqs;textShadow=1;" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;SQS&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 14px;&quot;&gt;job-requests&lt;/font&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="50" x="530" y="370" as="geometry" />
         </mxCell>
-        <mxCell id="dynamodb" parent="region" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#C925D1;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=24;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.dynamodb;" value="App Table&#xa;DynamoDB" vertex="1">
-          <mxGeometry height="120" width="120" x="1420" y="370" as="geometry" />
+        <mxCell id="worker" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#ED7100;strokeColor=#ffffff;dashed=0;verticalLabelPosition=middle;verticalAlign=middle;align=left;html=1;fontSize=14;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;textShadow=1;spacingLeft=4;labelPosition=right;" value="Worker Lambda&lt;div&gt;worker.py&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="50" x="740" y="220" as="geometry" />
         </mxCell>
-        <mxCell id="sqs" parent="region" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#E7157B;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=24;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.sqs;" value="Job Queue&#xa;SQS" vertex="1">
-          <mxGeometry height="120" width="120" x="760" y="660" as="geometry" />
+        <mxCell id="bedrock" parent="1" style="sketch=0;outlineConnect=0;fontColor=#000000;fillColor=#01A88D;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=14;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;textShadow=1;" value="Bedrock&lt;div&gt;Claude Sonnet&lt;/div&gt;" vertex="1">
+          <mxGeometry height="50" width="50" x="880" y="370" as="geometry" />
         </mxCell>
-        <mxCell id="worker-lambda" parent="region" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#ED7100;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=24;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;" value="Worker Lambda&#xa;worker.py" vertex="1">
-          <mxGeometry height="120" width="120" x="1090" y="660" as="geometry" />
+        <mxCell id="e-browser-cognito" edge="1" parent="1" source="browser" style="endArrow=classic;html=1;rounded=0;dashed=1;labelBackgroundColor=none;spacingLeft=-9;textShadow=1;" target="cognito" value="PKCE login">
+          <mxGeometry relative="1" x="0.1837" y="15" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="90" y="105" />
+            </Array>
+          </mxGeometry>
         </mxCell>
-        <mxCell id="bedrock" parent="region" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#232F3E;fillColor=#01A88D;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=24;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.bedrock;" value="Claude Sonnet&#xa;AWS Bedrock" vertex="1">
-          <mxGeometry height="120" width="120" x="1420" y="660" as="geometry" />
-        </mxCell>
-        <mxCell id="e-user-spa" edge="1" parent="region" source="user" style="endArrow=classic;startArrow=none;html=1;rounded=0;dashed=1;fontSize=16;                  exitX=0.5;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="s3-frontend" value="Load App">
+        <mxCell id="e-browser-api" edge="1" parent="1" source="browser" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=none;spacingLeft=0;spacingTop=-16;labelBorderColor=none;textShadow=1;" target="api" value="API calls + JWT">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-user-apigw" edge="1" parent="region" source="user" style="endArrow=classic;startArrow=none;html=1;rounded=0;fontSize=16;                  exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" target="apigw" value="API Request + JWT">
+        <mxCell id="e-api-ddb" edge="1" parent="1" source="api" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=none;spacingLeft=-73;textShadow=1;" target="dynamodb" value="Job metadata">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-user-cognito" edge="1" parent="region" source="user" style="endArrow=classic;startArrow=none;html=1;rounded=0;dashed=1;fontSize=16;                  edgeStyle=orthogonalEdgeStyle;                  exitX=1;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="cognito" value="Authenticate">
+        <mxCell id="e-api-s3" edge="1" parent="1" source="api" style="endArrow=classic;startArrow=classic;startFill=0;html=1;rounded=0;labelBackgroundColor=none;spacingTop=-16;textShadow=1;" target="s3-backend" value="Resume text">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-api-sqs" edge="1" parent="1" source="api" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=none;spacingLeft=-45;spacingTop=34;textShadow=1;" target="sqs" value="Enqueue job">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-cognito-apigw" edge="1" parent="region" source="cognito" style="endArrow=classic;startArrow=none;html=1;rounded=0;dashed=1;fontSize=16;                  exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="apigw" value="JWT Authorizer">
+        <mxCell id="e-sqs-worker" edge="1" parent="1" source="sqs" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=none;spacingLeft=64;textShadow=1;" target="worker" value="Trigger">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-apigw-lambda" edge="1" parent="region" source="apigw" style="endArrow=classic;startArrow=none;html=1;rounded=0;fontSize=16;                  exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" target="api-lambda" value="Route">
+        <mxCell id="e-worker-bedrock" edge="1" parent="1" source="worker" style="endArrow=classic;rounded=0;labelBackgroundColor=none;html=1;convertToSvg=1;textShadow=1;" target="bedrock" value="&lt;span&gt;Extract + Score&lt;/span&gt;">
+          <mxGeometry relative="1" x="0.3333" y="42" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e-worker-s3" edge="1" parent="1" source="worker" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=none;spacingTop=-17;textShadow=1;" target="s3-backend" value="Job artifacts">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-lambda-s3" edge="1" parent="region" source="api-lambda" style="endArrow=classic;startArrow=classic;startFill=0;html=1;rounded=0;dashed=1;fontSize=16;                  exitX=1;exitY=0.35;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0;entryY=0.35;entryDx=0;entryDy=0;entryPerimeter=0;" target="s3-backend" value="Resume Text">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e-lambda-dynamo" edge="1" parent="region" source="api-lambda" style="endArrow=classic;startArrow=classic;startFill=0;rounded=0;dashed=1;fontSize=16;                  edgeStyle=orthogonalEdgeStyle;                  exitX=1;exitY=0.65;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0;entryY=0.65;entryDx=0;entryDy=0;entryPerimeter=0;labelBackgroundColor=default;html=1;" target="dynamodb" value="Job Metadata">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e-lambda-sqs" edge="1" parent="region" source="api-lambda" style="endArrow=classic;startArrow=none;html=1;rounded=0;fontSize=16;                  exitX=0.5;exitY=1;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0.5;entryY=0;entryDx=0;entryDy=0;entryPerimeter=0;" target="sqs" value="Enqueue Job">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e-sqs-worker" edge="1" parent="region" source="sqs" style="endArrow=classic;startArrow=none;html=1;rounded=0;fontSize=16;                  exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" target="worker-lambda" value="Trigger">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e-worker-s3" edge="1" parent="region" source="worker-lambda" style="endArrow=classic;startArrow=none;html=1;rounded=0;dashed=1;fontSize=16;                  exitX=0.5;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0.5;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="s3-backend" value="Job Artifacts">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e-worker-bedrock" edge="1" parent="region" source="worker-lambda" style="endArrow=classic;startArrow=none;html=1;rounded=0;fontSize=16;                  exitX=1;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0;entryY=0.5;entryDx=0;entryDy=0;entryPerimeter=0;" target="bedrock" value="Extract + Score">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e-worker-dynamo" edge="1" parent="region" source="worker-lambda" style="endArrow=classic;startArrow=none;html=1;rounded=0;dashed=1;fontSize=16;                  edgeStyle=orthogonalEdgeStyle;                  exitX=1;exitY=0;exitDx=0;exitDy=0;exitPerimeter=0;                  entryX=0;entryY=1;entryDx=0;entryDy=0;entryPerimeter=0;" target="dynamodb" value="Update Score + Status">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="e-worker-ddb" edge="1" parent="1" source="worker" style="endArrow=classic;html=1;rounded=0;labelBackgroundColor=none;spacingTop=-7;textShadow=1;" target="dynamodb" value="Update score + status">
+          <mxGeometry relative="1" x="0.3939" y="-5" as="geometry">
+            <mxPoint as="offset" />
+            <Array as="points">
+              <mxPoint x="765" y="105" />
+            </Array>
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>

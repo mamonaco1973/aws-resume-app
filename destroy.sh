@@ -23,6 +23,13 @@
 export AWS_DEFAULT_REGION="us-east-1"
 
 # ------------------------------------------------------------------------------
+# BEDROCK MODEL CONFIGURATION
+# ------------------------------------------------------------------------------
+# Terraform needs the model ID during destroy to resolve variable references.
+# ------------------------------------------------------------------------------
+source "$(dirname "$0")/bedrock-config.sh"
+
+# ------------------------------------------------------------------------------
 # STRICT SHELL EXECUTION MODE
 # ------------------------------------------------------------------------------
 # Enforces defensive Bash behavior:
@@ -51,7 +58,7 @@ cd 01-core || {
 }
 
 terraform init
-terraform destroy -auto-approve
+terraform destroy -auto-approve -var="bedrock_model_id=${BEDROCK_MODEL_ID}"
 
 cd .. || exit 1
 
