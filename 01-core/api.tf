@@ -184,6 +184,62 @@ resource "aws_apigatewayv2_route" "delete_job" {
 }
 
 # ================================================================================
+# User registration and token usage routes
+# ================================================================================
+
+resource "aws_apigatewayv2_route" "register_user" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /register"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "get_usage" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /usage"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ================================================================================
+# Attachment routes
+# ================================================================================
+
+resource "aws_apigatewayv2_route" "list_attachments" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /jobs/{job_id}/attachments"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "upload_attachment" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /jobs/{job_id}/attachments"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "download_attachment" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /jobs/{job_id}/attachments/{attachment_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "delete_attachment" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "DELETE /jobs/{job_id}/attachments/{attachment_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+# ================================================================================
 # Stage
 # ================================================================================
 

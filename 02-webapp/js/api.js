@@ -115,6 +115,46 @@ export async function moveJobToFolder(jobId, folderId) {
 }
 
 // -----------------------------------------------------------------------------
+// Registration API
+// -----------------------------------------------------------------------------
+
+// Throws with message "user_limit_reached" when the user cap is full
+export async function register() {
+  return apiRequest("/register", { method: "POST", body: JSON.stringify({}) });
+}
+
+// -----------------------------------------------------------------------------
+// Usage API
+// -----------------------------------------------------------------------------
+
+export async function getUsage() {
+  return apiRequest("/usage", { method: "GET" });
+}
+
+// -----------------------------------------------------------------------------
+// Attachments API
+// -----------------------------------------------------------------------------
+
+export async function listAttachments(jobId) {
+  return apiRequest(`/jobs/${jobId}/attachments`, { method: "GET" });
+}
+
+export async function uploadAttachment(jobId, filename, contentType, base64Data) {
+  return apiRequest(`/jobs/${jobId}/attachments`, {
+    method: "POST",
+    body: JSON.stringify({ filename, content_type: contentType, data: base64Data }),
+  });
+}
+
+export async function downloadAttachment(jobId, attachmentId) {
+  return apiRequest(`/jobs/${jobId}/attachments/${attachmentId}`, { method: "GET" });
+}
+
+export async function deleteAttachment(jobId, attachmentId) {
+  return apiRequest(`/jobs/${jobId}/attachments/${attachmentId}`, { method: "DELETE" });
+}
+
+// -----------------------------------------------------------------------------
 // Folders API
 // -----------------------------------------------------------------------------
 

@@ -4,7 +4,7 @@
 /* resume selector, and job list on DOMContentLoaded.                         */
 /* ========================================================================== */
 
-import { createJob, listResumes,
+import { createJob, listResumes, register, getUsage,
          listFolders, createFolder, deleteFolder } from "./api.js";
 import { loadJobs, hasPendingJobs,
          setFolderFilter, setStatusFilter,
@@ -31,10 +31,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
+  // Check user cap before loading the dashboard
+  try {
+    await register();
+  } catch (error) {
+    if (error.message === "user_limit_reached") {
+      await showAlert(
+        "This app has reached its maximum number of free users.\n\n" +
+        "To request access, email mamonaco1973@gmail.com.",
+        { title: "Registration Closed" }
+      );
+      localStorage.removeItem("id_token");
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      window.location.href = getLogoutUrl();
+      return;
+    }
+  }
+
   try {
     restoreFilterState();
     await loadFolders();
     await refreshApp();
+    await updateTokenUsage();
   } catch (error) {
     console.error("Failed to load dashboard:", error);
   }
@@ -552,6 +571,7 @@ async function refreshApp() {
     table?.classList.add("loading");
 
     await loadJobs();
+    await updateTokenUsage();
   } catch (error) {
     console.error("Failed to refresh dashboard:", error);
     await showAlert(`Failed to refresh jobs: ${error.message}`, { title: "Error" });
@@ -726,6 +746,39 @@ function getCookie(name) {
     const [k, v] = part.split("=");
     return k === name ? decodeURIComponent(v || "") : found;
   }, "");
+}
+
+/* -------------------------------------------------------------------------- */
+/* Function: updateTokenUsage                                                  */
+/* Purpose: Fetch the user's current token usage and update the SVG ring     */
+/*          indicator in the filter bar. Swallows errors so it never blocks  */
+/*          the dashboard from loading.                                       */
+/* -------------------------------------------------------------------------- */
+async function updateTokenUsage() {
+  try {
+    const data  = await getUsage();
+    const used  = data?.tokens_used  ?? 0;
+    const limit = data?.token_limit  ?? 100000;
+
+    const arc   = document.getElementById("token-ring-arc");
+    const label = document.getElementById("token-usage-label");
+    if (!arc || !label) return;
+
+    const pct         = limit > 0 ? Math.min(used / limit, 1) : 0;
+    const circumference = 2 * Math.PI * 15.9;
+    const filled      = pct * circumference;
+    arc.setAttribute("stroke-dasharray", `${filled.toFixed(1)} ${circumference.toFixed(1)}`);
+
+    // Turn red when ≥ 80 % consumed
+    if (pct >= 0.8) arc.classList.add("token-near-limit");
+    else            arc.classList.remove("token-near-limit");
+
+    const fmt = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
+    label.textContent = `${fmt(used)} / ${fmt(limit)}`;
+    label.title       = `${used.toLocaleString()} / ${limit.toLocaleString()} tokens`;
+  } catch (_) {
+    // Token display is non-critical — fail silently
+  }
 }
 
 /* -------------------------------------------------------------------------- */

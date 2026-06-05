@@ -514,7 +514,9 @@ def list_jobs(event=None):
             "folder_id": item.get("folder_id") or "",
             "score":     item.get("score"),
             "created_at": item.get("created_at"),
-            "updated_at": item.get("updated_at")
+            "updated_at": item.get("updated_at"),
+            # Avoids extra fetches in the dashboard clip button logic
+            "attachment_count": len(item.get("attachments") or []),
         }
         for item in result.get("Items", [])
         if item["sk"].startswith("JOB#")

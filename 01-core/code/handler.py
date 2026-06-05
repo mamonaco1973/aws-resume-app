@@ -11,6 +11,10 @@
 
 import json
 import logging
+from attachments import (
+    list_attachments, upload_attachment,
+    download_attachment, delete_attachment,
+)
 from folders import list_folders, create_folder, delete_folder
 from jobs import (
     create_job, delete_job, get_job, list_jobs,
@@ -23,6 +27,7 @@ from resumes import (
     list_resumes,
     update_resume,
 )
+from users import register_user, get_usage
 
 # --------------------------------------------------------------------------------
 # Configure logger
@@ -52,8 +57,30 @@ def lambda_handler(event, context):
 
     try:
         # ------------------------------------------------------------------------
-        # Jobs collection endpoints
+        # User registration and token usage
         # ------------------------------------------------------------------------
+
+        if method == "POST" and path == "/register":
+            return register_user(event)
+
+        if method == "GET" and path == "/usage":
+            return get_usage(event)
+
+        # ------------------------------------------------------------------------
+        # Attachment endpoints — checked before /jobs/{id} to avoid prefix clash
+        # ------------------------------------------------------------------------
+
+        if path.endswith("/attachments"):
+            if method == "GET":
+                return list_attachments(event)
+            if method == "POST":
+                return upload_attachment(event)
+
+        if "/attachments/" in path:
+            if method == "GET":
+                return download_attachment(event)
+            if method == "DELETE":
+                return delete_attachment(event)
 
         # ------------------------------------------------------------------------
         # Folder endpoints
@@ -82,9 +109,10 @@ def lambda_handler(event, context):
         # Individual job endpoints
         # ------------------------------------------------------------------------
 
-        if method == "GET" and path.startswith("/jobs/") and not path.endswith(
-            "/notes"
-        ):
+        if (method == "GET" and path.startswith("/jobs/")
+                and not path.endswith("/notes")
+                and not path.endswith("/attachments")
+                and "/attachments/" not in path):
             return get_job(event)
 
         if method == "PATCH" and path.endswith("/notes"):
@@ -93,9 +121,10 @@ def lambda_handler(event, context):
         if method == "PATCH" and path.endswith("/folder"):
             return move_job_to_folder(event)
 
-        if method == "DELETE" and path.startswith("/jobs/") and not path.endswith(
-            "/notes"
-        ):
+        if (method == "DELETE" and path.startswith("/jobs/")
+                and not path.endswith("/notes")
+                and not path.endswith("/attachments")
+                and "/attachments/" not in path):
             return delete_job(event)
 
         # ------------------------------------------------------------------------

@@ -4,11 +4,18 @@
 /* client-side filtering, multi-select checkboxes, and bulk actions.          */
 /* ========================================================================== */
 
-import { deleteJob, listJobs, moveJobToFolder } from "./api.js";
+import { deleteJob, listJobs, moveJobToFolder,
+         listAttachments, downloadAttachment }   from "./api.js";
 import { showAlert, showConfirm }               from "./modal.js";
 
-const ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
-const ICON_ARROW = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+const ICON_TRASH    = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+const ICON_ARROW    = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
+const ICON_CLIP     = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
+const ICON_DOWNLOAD = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
+
+// Attachment dropdown — one shared element repositioned per click
+let dropdownEl          = null;
+let activeDropdownJobId = null;
 
 let jobs = [];
 let currentSort = {
@@ -176,13 +183,19 @@ function renderJobsTable() {
   });
 
   bindCheckboxHandlers(visible);
+  bindClipHandlers();
   updateBulkActionBar();
 }
 
 function renderJobTitle(job) {
   const title = escapeHtml(job.job_title || "—");
   const href  = `/job.html?id=${encodeURIComponent(job.job_id)}`;
-  return `<a href="${href}" target="${escapeHtml(job.job_id)}">${title}</a>`;
+  const n     = job.attachment_count || 0;
+  const clip  = n > 0
+    ? ` <button class="btn-clip" data-job-id="${escapeHtml(job.job_id)}"
+          title="${n} attachment${n === 1 ? "" : "s"}">${ICON_CLIP}</button>`
+    : "";
+  return `<a href="${href}" target="${escapeHtml(job.job_id)}">${title}</a>${clip}`;
 }
 
 function renderCompany(job) {
@@ -337,6 +350,104 @@ function bindBulkHandlers() {
   });
 
   bulkHandlersBound = true;
+}
+
+// -----------------------------------------------------------------------------
+// Attachment dropdown
+// -----------------------------------------------------------------------------
+
+function getOrCreateDropdown() {
+  if (dropdownEl) return dropdownEl;
+  dropdownEl = document.createElement("div");
+  dropdownEl.className = "attachment-dropdown hidden";
+  document.body.appendChild(dropdownEl);
+  // Dismiss on any outside click
+  document.addEventListener("click", (e) => {
+    if (
+      dropdownEl &&
+      !dropdownEl.contains(e.target) &&
+      !e.target.closest(".btn-clip")
+    ) {
+      closeDropdown();
+    }
+  }, true);
+  return dropdownEl;
+}
+
+function closeDropdown() {
+  dropdownEl?.classList.add("hidden");
+  activeDropdownJobId = null;
+}
+
+function bindClipHandlers() {
+  document.querySelectorAll(".btn-clip").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const jobId = btn.dataset.jobId;
+      if (activeDropdownJobId === jobId) { closeDropdown(); return; }
+      await openAttachmentDropdown(btn, jobId);
+    });
+  });
+}
+
+async function openAttachmentDropdown(btn, jobId) {
+  const dropdown = getOrCreateDropdown();
+  activeDropdownJobId = jobId;
+
+  dropdown.innerHTML = `<div class="attachment-dropdown-loading">Loading…</div>`;
+  dropdown.classList.remove("hidden");
+  positionDropdown(btn, dropdown);
+
+  try {
+    const attachments = await listAttachments(jobId);
+    if (!attachments.length) {
+      dropdown.innerHTML = `<div class="attachment-dropdown-empty">No attachments</div>`;
+      return;
+    }
+    dropdown.innerHTML = attachments.map((att) => `
+      <div class="attachment-dropdown-item"
+           data-job-id="${escapeHtml(jobId)}"
+           data-att-id="${escapeHtml(att.attachment_id)}"
+           data-filename="${escapeHtml(att.filename)}">
+        ${ICON_DOWNLOAD}
+        <span title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</span>
+      </div>
+    `).join("");
+
+    dropdown.querySelectorAll(".attachment-dropdown-item").forEach((item) => {
+      item.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        closeDropdown();
+        await triggerDownload(item.dataset.jobId, item.dataset.attId, item.dataset.filename);
+      });
+    });
+  } catch (_) {
+    dropdown.innerHTML = `<div class="attachment-dropdown-empty">Failed to load</div>`;
+  }
+}
+
+function positionDropdown(btn, dropdown) {
+  const rect = btn.getBoundingClientRect();
+  dropdown.style.top  = `${rect.bottom + 4}px`;
+  const rightEdge = rect.left + 220;
+  const left = rightEdge > window.innerWidth ? window.innerWidth - 224 : rect.left;
+  dropdown.style.left = `${left}px`;
+}
+
+async function triggerDownload(jobId, attachmentId, filename) {
+  try {
+    const result = await downloadAttachment(jobId, attachmentId);
+    const bytes  = Uint8Array.from(atob(result.data), (c) => c.charCodeAt(0));
+    const blob   = new Blob([bytes], { type: result.content_type });
+    const url    = URL.createObjectURL(blob);
+    const a      = document.createElement("a");
+    a.href     = url;
+    a.download = result.filename || filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    await showAlert(`Download failed: ${error.message}`, { title: "Error" });
+  }
 }
 
 // -----------------------------------------------------------------------------

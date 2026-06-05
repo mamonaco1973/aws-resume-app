@@ -45,7 +45,9 @@ resource "aws_iam_policy" "lambda_dynamodb" {
           "dynamodb:GetItem",
           "dynamodb:Query",
           "dynamodb:UpdateItem",
-          "dynamodb:DeleteItem"
+          "dynamodb:DeleteItem",
+          # Scan used to count registered users for the USER_CAP check
+          "dynamodb:Scan"
         ]
         Resource = aws_dynamodb_table.app_table.arn
       }

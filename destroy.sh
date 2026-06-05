@@ -44,11 +44,11 @@ set -euo pipefail
 # ================================================================================
 
 # ------------------------------------------------------------------------------
-# DESTROY BACKEND SERVICES
+# EMPTY DYNAMODB TABLE
 # ------------------------------------------------------------------------------
-# Removes backend infrastructure provisioned by Terraform, including:
-#   - Lambda functions
-#   - API Gateway routes and integrations
+# Terraform cannot destroy a non-empty DynamoDB table that has deletion
+# protection off, but emptying it first makes destroy reliable and avoids
+# orphaned data on re-deploy.
 # ------------------------------------------------------------------------------
 echo "NOTE: Destroying Application Core Services..."
 

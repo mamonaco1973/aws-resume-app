@@ -54,6 +54,8 @@ logger.setLevel(logging.INFO)
 dynamodb = boto3.resource("dynamodb")
 table = dynamodb.Table(os.environ["TABLE_NAME"])
 
+TOKEN_LIMIT_DEFAULT = 100_000
+
 bedrock_runtime = boto3.client(
     "bedrock-runtime",
     config=Config(read_timeout=240, connect_timeout=10),
@@ -214,6 +216,30 @@ def write_s3_text(key, text):
 # =================================================================================
 # DynamoDB helpers
 # =================================================================================
+
+
+def accumulate_tokens(user_id, input_tokens, output_tokens):
+    """
+    Add consumed Bedrock tokens to the user's lifetime usage record.
+
+    Uses ADD so it's safe to call without a pre-existing item; DynamoDB
+    will initialise missing numeric attributes to zero before adding.
+    """
+    total = int(input_tokens or 0) + int(output_tokens or 0)
+    if total <= 0:
+        return
+    try:
+        table.update_item(
+            Key={"pk": f"USER#{user_id}", "sk": "USER#USAGE"},
+            UpdateExpression="ADD tokens_used :n",
+            ExpressionAttributeValues={":n": total},
+        )
+    except Exception:
+        # Token tracking is best-effort — never let it block job completion
+        logger.exception(
+            "Failed to update token usage. user_id=%s tokens=%s",
+            user_id, total
+        )
 
 
 def update_job_status(user_id, job_id, status, status_message):
@@ -433,7 +459,7 @@ def extract_visible_text(html):
 # =================================================================================
 
 
-def extract_job_fields_with_bedrock(visible_text):
+def extract_job_fields_with_bedrock(visible_text, user_id=None):
     """
     Ask Bedrock to extract structured job fields from visible page text.
 
@@ -509,13 +535,20 @@ SOURCE TEXT:
         usage.get("output_tokens", "n/a"),
     )
 
+    if user_id:
+        accumulate_tokens(
+            user_id,
+            usage.get("input_tokens", 0),
+            usage.get("output_tokens", 0),
+        )
+
     text = payload["content"][0]["text"].strip()
     text = strip_code_fences(text)
 
     return json.loads(text)
 
 
-def score_resume_with_bedrock(resume_text, job_text):
+def score_resume_with_bedrock(resume_text, job_text, user_id=None):
     """
     Ask Bedrock to score a resume against a job description.
 
@@ -596,6 +629,13 @@ JOB DESCRIPTION:
         usage.get("output_tokens", "n/a"),
     )
 
+    if user_id:
+        accumulate_tokens(
+            user_id,
+            usage.get("input_tokens", 0),
+            usage.get("output_tokens", 0),
+        )
+
     text = payload["content"][0]["text"].strip()
     text = strip_code_fences(text)
 
@@ -636,7 +676,7 @@ def put_job_analysis_to_s3(user_id, job_id, analysis_text):
 # =================================================================================
 
 
-def score_job_against_resume(user_id, job_id):
+def score_job_against_resume(user_id, job_id, track_user_id=None):
     """
     Read the stored resume snapshot and job description, score the resume
     against the job, store the analysis in S3, and return the numeric score.
@@ -667,7 +707,7 @@ def score_job_against_resume(user_id, job_id):
     # -----------------------------------------------------------------------------
 
     try:
-        scored = score_resume_with_bedrock(resume_text, job_text)
+        scored = score_resume_with_bedrock(resume_text, job_text, user_id=track_user_id)
     except Exception as exc:
         raise RuntimeError(
             f"Failed to score resume against job: {exc}"
@@ -806,7 +846,7 @@ def process_url_job(user_id, job_id, job_url):
     # -----------------------------------------------------------------------------
 
     try:
-        extracted = extract_job_fields_with_bedrock(visible_text)
+        extracted = extract_job_fields_with_bedrock(visible_text, user_id=user_id)
 
         logger.info(
             "Bedrock extraction completed. user_id=%s job_id=%s",
@@ -925,6 +965,7 @@ def process_url_job(user_id, job_id, job_url):
         score = score_job_against_resume(
             user_id=user_id,
             job_id=job_id,
+            track_user_id=user_id,
         )
 
         update_job_extracted_fields(
@@ -1029,7 +1070,7 @@ def process_raw_text_job(user_id, job_id):
     # -----------------------------------------------------------------------------
 
     try:
-        extracted = extract_job_fields_with_bedrock(job_text)
+        extracted = extract_job_fields_with_bedrock(job_text, user_id=user_id)
 
         logger.info(
             "Bedrock extraction completed for raw-text job. user_id=%s "
@@ -1129,6 +1170,7 @@ def process_raw_text_job(user_id, job_id):
         score = score_job_against_resume(
             user_id=user_id,
             job_id=job_id,
+            track_user_id=user_id,
         )
 
         update_job_extracted_fields(
