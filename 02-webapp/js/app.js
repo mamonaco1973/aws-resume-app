@@ -653,6 +653,8 @@ function updateAuthButtons() {
     signIn?.classList.remove("hidden");
     signOut?.classList.add("hidden");
     document.getElementById("filter-bar")?.classList.add("hidden");
+    // Reset token usage so it re-enters hidden state for the next login
+    document.getElementById("token-usage")?.classList.add("hidden");
 
     refresh?.setAttribute("disabled", "true");
     scoreJob?.setAttribute("disabled", "true");
@@ -763,8 +765,9 @@ async function updateTokenUsage() {
     const usedPct   = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
     const leftPct   = 100 - usedPct;
 
-    const arc   = document.getElementById("token-ring-arc");
-    const label = document.getElementById("token-usage-label");
+    const arc     = document.getElementById("token-ring-arc");
+    const label   = document.getElementById("token-usage-label");
+    const display = document.getElementById("token-usage");
     if (!arc || !label) return;
 
     // Arc represents remaining tokens — starts full and depletes
@@ -774,6 +777,9 @@ async function updateTokenUsage() {
     const fmt = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
     label.textContent = `${fmt(remaining)} / ${fmt(limit)}`;
     label.title       = `${used.toLocaleString()} of ${limit.toLocaleString()} tokens used (${usedPct.toFixed(1)}%)`;
+
+    // Reveal only after data is populated — avoids showing an empty ring on load
+    display?.classList.remove("hidden");
   } catch (_) {
     // Token display is non-critical — fail silently
   }
