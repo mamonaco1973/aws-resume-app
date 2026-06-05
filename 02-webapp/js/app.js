@@ -756,26 +756,24 @@ function getCookie(name) {
 /* -------------------------------------------------------------------------- */
 async function updateTokenUsage() {
   try {
-    const data  = await getUsage();
-    const used  = data?.tokens_used  ?? 0;
-    const limit = data?.token_limit  ?? 100000;
+    const data      = await getUsage();
+    const used      = data?.tokens_used ?? 0;
+    const limit     = data?.token_limit ?? 100000;
+    const remaining = Math.max(0, limit - used);
+    const usedPct   = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+    const leftPct   = 100 - usedPct;
 
     const arc   = document.getElementById("token-ring-arc");
     const label = document.getElementById("token-usage-label");
     if (!arc || !label) return;
 
-    const pct         = limit > 0 ? Math.min(used / limit, 1) : 0;
-    const circumference = 2 * Math.PI * 15.9;
-    const filled      = pct * circumference;
-    arc.setAttribute("stroke-dasharray", `${filled.toFixed(1)} ${circumference.toFixed(1)}`);
-
-    // Turn red when ≥ 80 % consumed
-    if (pct >= 0.8) arc.classList.add("token-near-limit");
-    else            arc.classList.remove("token-near-limit");
+    // Arc represents remaining tokens — starts full and depletes
+    arc.setAttribute("stroke-dasharray", `${leftPct.toFixed(1)} ${usedPct.toFixed(1)}`);
+    arc.classList.toggle("token-near-limit", usedPct >= 80);
 
     const fmt = (n) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : String(n);
-    label.textContent = `${fmt(used)} / ${fmt(limit)}`;
-    label.title       = `${used.toLocaleString()} / ${limit.toLocaleString()} tokens`;
+    label.textContent = `${fmt(remaining)} / ${fmt(limit)}`;
+    label.title       = `${used.toLocaleString()} of ${limit.toLocaleString()} tokens used (${usedPct.toFixed(1)}%)`;
   } catch (_) {
     // Token display is non-critical — fail silently
   }
