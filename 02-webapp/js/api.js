@@ -107,6 +107,32 @@ export async function deleteJob(jobId) {
   });
 }
 
+export async function moveJobToFolder(jobId, folderId) {
+  return apiRequest(`/jobs/${jobId}/folder`, {
+    method: "PATCH",
+    body: JSON.stringify({ folder_id: folderId })
+  });
+}
+
+// -----------------------------------------------------------------------------
+// Folders API
+// -----------------------------------------------------------------------------
+
+export async function listFolders() {
+  return apiRequest("/folders", { method: "GET" });
+}
+
+export async function createFolder(payload) {
+  return apiRequest("/folders", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export async function deleteFolder(folderId) {
+  return apiRequest(`/folders/${folderId}`, { method: "DELETE" });
+}
+
 // -----------------------------------------------------------------------------
 // Resumes API
 // -----------------------------------------------------------------------------

@@ -11,7 +11,11 @@
 
 import json
 import logging
-from jobs import create_job, delete_job, get_job, list_jobs, update_job_notes
+from folders import list_folders, create_folder, delete_folder
+from jobs import (
+    create_job, delete_job, get_job, list_jobs,
+    move_job_to_folder, update_job_notes,
+)
 from resumes import (
     create_resume,
     delete_resume,
@@ -51,6 +55,23 @@ def lambda_handler(event, context):
         # Jobs collection endpoints
         # ------------------------------------------------------------------------
 
+        # ------------------------------------------------------------------------
+        # Folder endpoints
+        # ------------------------------------------------------------------------
+
+        if method == "GET" and path == "/folders":
+            return list_folders(event)
+
+        if method == "POST" and path == "/folders":
+            return create_folder(event)
+
+        if method == "DELETE" and path.startswith("/folders/"):
+            return delete_folder(event)
+
+        # ------------------------------------------------------------------------
+        # Jobs collection endpoints
+        # ------------------------------------------------------------------------
+
         if method == "GET" and path == "/jobs":
             return list_jobs(event)
 
@@ -68,6 +89,9 @@ def lambda_handler(event, context):
 
         if method == "PATCH" and path.endswith("/notes"):
             return update_job_notes(event)
+
+        if method == "PATCH" and path.endswith("/folder"):
+            return move_job_to_folder(event)
 
         if method == "DELETE" and path.startswith("/jobs/") and not path.endswith(
             "/notes"

@@ -71,6 +71,38 @@ resource "aws_apigatewayv2_integration" "lambda" {
 # Routes
 # ================================================================================
 
+resource "aws_apigatewayv2_route" "get_folders" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /folders"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "create_folder" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "POST /folders"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "delete_folder" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "DELETE /folders/{folder_id}"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
+resource "aws_apigatewayv2_route" "move_job_to_folder" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "PATCH /jobs/{job_id}/folder"
+  target             = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito.id
+}
+
 resource "aws_apigatewayv2_route" "get_jobs" {
   api_id             = aws_apigatewayv2_api.api.id
   route_key          = "GET /jobs"

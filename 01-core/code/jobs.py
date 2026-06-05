@@ -345,6 +345,7 @@ def create_job(event):
     job_url = body.get("job_url", "").strip()
     job_description = body.get("job_description", "").strip()
     notes = body.get("notes", "").strip()
+    folder_id = body.get("folder_id", "").strip() or None
 
     if not resume_id:
         return response(400, {"error": "resume_id is required"})
@@ -416,22 +417,24 @@ def create_job(event):
     # Write metadata
     # --------------------------------------------------------------------------
 
-    table.put_item(
-        Item={
-            "pk": paths["pk"],
-            "sk": paths["sk"],
-            "resume_id": resume_id,
-            "source_type": source_type,
-            "job_url": job_url if source_type == "url" else "",
-            "status": "submitted",
-            "status_message": "Job submitted for scoring",
-            "job_title": "",
-            "company": "",
-            "score": None,
-            "created_at": now,
-            "updated_at": now
-        }
-    )
+    item = {
+        "pk":           paths["pk"],
+        "sk":           paths["sk"],
+        "resume_id":    resume_id,
+        "source_type":  source_type,
+        "job_url":      job_url if source_type == "url" else "",
+        "status":       "submitted",
+        "status_message": "Job submitted for scoring",
+        "job_title":    "",
+        "company":      "",
+        "score":        None,
+        "created_at":   now,
+        "updated_at":   now,
+    }
+    if folder_id:
+        item["folder_id"] = folder_id
+
+    table.put_item(Item=item)
 
     # --------------------------------------------------------------------------
     # Enqueue scoring request
@@ -501,13 +504,15 @@ def list_jobs(event=None):
 
     jobs = [
         {
-            "job_id": item["sk"].replace("JOB#", "", 1),
+            "job_id":    item["sk"].replace("JOB#", "", 1),
             "resume_id": item.get("resume_id"),
-            "status": item.get("status"),
+            "status":    item.get("status"),
             "status_message": item.get("status_message"),
             "job_title": item.get("job_title"),
-            "company": item.get("company"),
-            "score": item.get("score"),
+            "company":   item.get("company"),
+            "job_url":   item.get("job_url", ""),
+            "folder_id": item.get("folder_id") or "",
+            "score":     item.get("score"),
             "created_at": item.get("created_at"),
             "updated_at": item.get("updated_at")
         }
@@ -607,6 +612,45 @@ def update_job_notes(event):
     )
 
     return response(200, {"updated": True})
+
+
+# ------------------------------------------------------------------------------
+# PATCH /jobs/{job_id}/folder
+#
+# Moves a job into a folder or removes it from its current folder.
+# ------------------------------------------------------------------------------
+
+def move_job_to_folder(event):
+
+    user_id = get_user_id(event)
+    job_id  = get_job_id(event)
+
+    if not job_id:
+        return response(400, {"error": "job_id is required"})
+
+    item = get_job_item(user_id, job_id)
+    if not item:
+        return response(404, {"error": "job not found"})
+
+    body      = json.loads(event["body"])
+    folder_id = (body.get("folder_id") or "").strip() or None
+    paths     = build_job_paths(user_id, job_id)
+
+    if folder_id:
+        table.update_item(
+            Key={"pk": paths["pk"], "sk": paths["sk"]},
+            UpdateExpression="SET folder_id = :fid, updated_at = :ts",
+            ExpressionAttributeValues={":fid": folder_id, ":ts": utc_now()}
+        )
+    else:
+        # REMOVE the attribute so missing and unassigned are equivalent
+        table.update_item(
+            Key={"pk": paths["pk"], "sk": paths["sk"]},
+            UpdateExpression="REMOVE folder_id SET updated_at = :ts",
+            ExpressionAttributeValues={":ts": utc_now()}
+        )
+
+    return response(200, {"job_id": job_id, "folder_id": folder_id})
 
 
 # ------------------------------------------------------------------------------

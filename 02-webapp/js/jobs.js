@@ -1,19 +1,32 @@
 /* ========================================================================== */
 /* jobs.js                                                                     */
-/* Fetches the job list, renders the jobs table, and handles column sorting   */
-/* and per-row deletion. Exported loadJobs() is the public entry point.       */
+/* Fetches the job list, renders the jobs table, handles column sorting,      */
+/* client-side filtering, multi-select checkboxes, and bulk actions.          */
 /* ========================================================================== */
 
-import { deleteJob, listJobs } from "./api.js";
+import { deleteJob, listJobs, moveJobToFolder } from "./api.js";
+import { showAlert, showConfirm }               from "./modal.js";
+
+const ICON_TRASH = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+const ICON_ARROW = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>`;
 
 let jobs = [];
 let currentSort = {
-  field: "created_at",
+  field:     "created_at",
   direction: "desc"
 };
 
+// Active filter state — set by app.js via the exported setters below
+let filterFolderId = "";
+let filterStatus   = "";
+let filterSearch   = "";
+
+// Multi-select state
+let selectedJobIds    = new Set();
+let bulkHandlersBound = false;
+
 // -----------------------------------------------------------------------------
-// Public entry point
+// Public API
 // -----------------------------------------------------------------------------
 
 export async function loadJobs() {
@@ -21,7 +34,12 @@ export async function loadJobs() {
   sortJobs();
   renderJobsTable();
   bindSortHandlers();
+  bindBulkHandlers();
 }
+
+export function setFolderFilter(folderId) { filterFolderId = folderId || ""; selectedJobIds.clear(); }
+export function setStatusFilter(status)   { filterStatus   = status   || ""; selectedJobIds.clear(); }
+export function setSearchFilter(text)     { filterSearch   = text     || ""; selectedJobIds.clear(); }
 
 // Returns true if any job is still being processed, so the dashboard
 // knows to keep polling.
@@ -39,18 +57,15 @@ function bindSortHandlers() {
   const headers = document.querySelectorAll("th[data-sort]");
 
   headers.forEach((header) => {
-    if (header.dataset.bound === "true") {
-      return;
-    }
+    if (header.dataset.bound === "true") return;
 
     header.addEventListener("click", () => {
       const field = header.dataset.sort;
 
       if (currentSort.field === field) {
-        currentSort.direction =
-          currentSort.direction === "asc" ? "desc" : "asc";
+        currentSort.direction = currentSort.direction === "asc" ? "desc" : "asc";
       } else {
-        currentSort.field = field;
+        currentSort.field     = field;
         currentSort.direction = "asc";
       }
 
@@ -70,17 +85,10 @@ function sortJobs() {
   const { field, direction } = currentSort;
 
   jobs.sort((a, b) => {
-    const aValue = normalizeSortValue(a[field], field);
-    const bValue = normalizeSortValue(b[field], field);
-
-    if (aValue < bValue) {
-      return direction === "asc" ? -1 : 1;
-    }
-
-    if (aValue > bValue) {
-      return direction === "asc" ? 1 : -1;
-    }
-
+    const aVal = normalizeSortValue(a[field], field);
+    const bVal = normalizeSortValue(b[field], field);
+    if (aVal < bVal) return direction === "asc" ? -1 : 1;
+    if (aVal > bVal) return direction === "asc" ?  1 : -1;
     return 0;
   });
 }
@@ -88,18 +96,40 @@ function sortJobs() {
 /* -------------------------------------------------------------------------- */
 /* Function: normalizeSortValue                                                */
 /* Purpose: Coerce a field value into a type-appropriate form for comparison. */
-/*          Scores become numbers, dates become timestamps, rest lowercase.   */
 /* -------------------------------------------------------------------------- */
 function normalizeSortValue(value, field) {
-  if (field === "score") {
-    return value == null ? -1 : Number(value);
-  }
-
+  if (field === "score") return value == null ? -1 : Number(value);
   if (field === "created_at" || field === "updated_at") {
     return value ? new Date(value).getTime() : 0;
   }
-
   return (value || "").toString().toLowerCase();
+}
+
+// -----------------------------------------------------------------------------
+// Filtering
+// -----------------------------------------------------------------------------
+
+/* -------------------------------------------------------------------------- */
+/* Function: filteredJobs                                                      */
+/* Purpose: Apply active folder, status, and search filters to the full       */
+/*          jobs array. All filtering is client-side; the API returns all.    */
+/* -------------------------------------------------------------------------- */
+function filteredJobs() {
+  const term = filterSearch.toLowerCase();
+  return jobs.filter((job) => {
+    if (filterFolderId) {
+      if ((job.folder_id || "") !== filterFolderId) return false;
+    }
+    if (filterStatus) {
+      if ((job.status || "").toLowerCase() !== filterStatus.toLowerCase()) return false;
+    }
+    if (term) {
+      const title   = (job.job_title || "").toLowerCase();
+      const company = (job.company   || "").toLowerCase();
+      if (!title.includes(term) && !company.includes(term)) return false;
+    }
+    return true;
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -107,51 +137,59 @@ function normalizeSortValue(value, field) {
 // -----------------------------------------------------------------------------
 
 function renderJobsTable() {
-  const tbody = document.getElementById("jobs-body");
+  const tbody      = document.getElementById("jobs-body");
   const emptyState = document.getElementById("empty-state");
-  const table = document.getElementById("jobs-table");
+  const table      = document.getElementById("jobs-table");
 
   tbody.innerHTML = "";
 
-  if (!jobs.length) {
+  const visible = filteredJobs();
+
+  if (!visible.length) {
     table.classList.add("hidden");
     emptyState.classList.remove("hidden");
+    emptyState.innerHTML = jobs.length
+      ? "<p>No jobs match the current filters.</p>"
+      : "<p>No jobs submitted yet.</p><p>Click <b>Score New Job</b> to begin.</p>";
+    updateBulkActionBar();
     return;
   }
 
   table.classList.remove("hidden");
   emptyState.classList.add("hidden");
 
-  jobs.forEach((job) => {
-    const row = document.createElement("tr");
-
+  visible.forEach((job) => {
+    const row     = document.createElement("tr");
+    const checked = selectedJobIds.has(job.job_id) ? "checked" : "";
     row.innerHTML = `
-      <td>${escapeHtml(job.job_title || "—")}</td>
-      <td>${escapeHtml(job.company || "—")}</td>
+      <td class="checkbox-cell">
+        <input type="checkbox" class="job-checkbox"
+          data-job-id="${escapeHtml(job.job_id)}" ${checked}>
+      </td>
+      <td>${renderJobTitle(job)}</td>
+      <td>${renderCompany(job)}</td>
       <td>${renderStatus(job.status)}</td>
       <td>${formatScore(job.score)}</td>
       <td>${formatDate(job.created_at)}</td>
-      <td class="row-actions">
-        <button
-          type="button"
-          class="open-job-btn"
-          data-job-id="${escapeHtml(job.job_id)}">
-          Open
-        </button>
-        <button
-          type="button"
-          class="delete-job-btn"
-          data-job-id="${escapeHtml(job.job_id)}">
-          Delete
-        </button>
-      </td>
     `;
-
     tbody.appendChild(row);
   });
 
-  bindOpenHandlers();
-  bindDeleteHandlers();
+  bindCheckboxHandlers(visible);
+  updateBulkActionBar();
+}
+
+function renderJobTitle(job) {
+  const title = escapeHtml(job.job_title || "—");
+  const href  = `/job.html?id=${encodeURIComponent(job.job_id)}`;
+  return `<a href="${href}" target="${escapeHtml(job.job_id)}">${title}</a>`;
+}
+
+function renderCompany(job) {
+  const name = escapeHtml(job.company || "—");
+  if (!job.job_url) return name;
+  const href = escapeHtml(job.job_url);
+  return `<a href="${href}" target="${escapeHtml(job.job_id)}" rel="noopener noreferrer">${name}</a>`;
 }
 
 function renderStatus(status) {
@@ -164,94 +202,141 @@ function formatScore(score) {
 }
 
 function formatDate(value) {
-  if (!value) {
-    return "—";
-  }
-
+  if (!value) return "—";
   const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
+  if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleDateString();
 }
 
 // -----------------------------------------------------------------------------
-// Open actions
+// Checkbox / Multi-select
 // -----------------------------------------------------------------------------
 
-function bindOpenHandlers() {
-  const buttons = document.querySelectorAll(".open-job-btn");
-
-  buttons.forEach((button) => {
-    if (button.dataset.bound === "true") {
-      return;
-    }
-
-    button.addEventListener("click", () => {
-      const jobId = button.dataset.jobId;
-
-      if (!jobId) {
-        return;
-      }
-
-      window.open(
-        `/job.html?id=${encodeURIComponent(jobId)}`,
-        jobId
-       );
+/* -------------------------------------------------------------------------- */
+/* Function: bindCheckboxHandlers                                              */
+/* Purpose: Wire per-row checkboxes and refresh the master checkbox state.    */
+/*          The master checkbox is cloned each render to avoid duplicate      */
+/*          listeners accumulating across table refreshes.                    */
+/* -------------------------------------------------------------------------- */
+function bindCheckboxHandlers(visible) {
+  const master = document.getElementById("select-all-jobs");
+  if (master) {
+    const allChecked  = visible.length > 0 && visible.every((j) => selectedJobIds.has(j.job_id));
+    const someChecked = visible.some((j) => selectedJobIds.has(j.job_id));
+    const fresh = master.cloneNode(true);
+    fresh.checked       = allChecked;
+    fresh.indeterminate = someChecked && !allChecked;
+    master.replaceWith(fresh);
+    fresh.addEventListener("change", () => {
+      const vis = filteredJobs();
+      if (fresh.checked) vis.forEach((j) => selectedJobIds.add(j.job_id));
+      else               vis.forEach((j) => selectedJobIds.delete(j.job_id));
+      renderJobsTable();
     });
+  }
 
-    button.dataset.bound = "true";
+  document.querySelectorAll(".job-checkbox").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      if (cb.checked) selectedJobIds.add(cb.dataset.jobId);
+      else            selectedJobIds.delete(cb.dataset.jobId);
+      updateBulkActionBar();
+      // Sync master checkbox without re-rendering the whole table
+      const vis = filteredJobs();
+      const m   = document.getElementById("select-all-jobs");
+      if (m) {
+        const all  = vis.length > 0 && vis.every((j) => selectedJobIds.has(j.job_id));
+        const some = vis.some((j) => selectedJobIds.has(j.job_id));
+        m.checked       = all;
+        m.indeterminate = some && !all;
+      }
+    });
   });
 }
 
-// -----------------------------------------------------------------------------
-// Delete actions
-// -----------------------------------------------------------------------------
+/* -------------------------------------------------------------------------- */
+/* Function: updateBulkActionBar                                               */
+/* Purpose: Show or hide the bulk action bar and sync the folder picker from  */
+/*          the main folder dropdown (single source of truth for folder list).*/
+/* -------------------------------------------------------------------------- */
+function updateBulkActionBar() {
+  const bar   = document.getElementById("bulk-action-bar");
+  const label = document.getElementById("bulk-count");
+  const n     = selectedJobIds.size;
+  if (!bar) return;
+  if (n === 0) { bar.classList.add("hidden"); return; }
+  bar.classList.remove("hidden");
+  if (label) label.textContent = `${n} job${n === 1 ? "" : "s"} selected`;
+  populateBulkFolderSelect();
+}
 
-function bindDeleteHandlers() {
-  const buttons = document.querySelectorAll(".delete-job-btn");
-
-  buttons.forEach((button) => {
-    if (button.dataset.bound === "true") {
-      return;
-    }
-
-    button.addEventListener("click", async () => {
-      const jobId = button.dataset.jobId;
-
-      if (!jobId) {
-        return;
-      }
-
-      const confirmed = window.confirm(
-        "Delete this job and its stored data?"
-      );
-
-      if (!confirmed) {
-        return;
-      }
-
-      const originalText = button.textContent;
-
-      try {
-        button.disabled = true;
-        button.textContent = "Deleting...";
-
-        await deleteJob(jobId);
-
-        jobs = jobs.filter((job) => job.job_id !== jobId);
-        renderJobsTable();
-      } catch (error) {
-        window.alert(`Delete failed: ${error.message}`);
-        button.disabled = false;
-        button.textContent = originalText;
-      }
-    });
-
-    button.dataset.bound = "true";
+function populateBulkFolderSelect() {
+  const bulk   = document.getElementById("bulk-folder-select");
+  const source = document.getElementById("folder-select");
+  if (!bulk || !source) return;
+  bulk.innerHTML = `<option value="">— Unassigned —</option>`;
+  Array.from(source.options).forEach((opt) => {
+    if (!opt.value) return;
+    const o = document.createElement("option");
+    o.value = opt.value; o.textContent = opt.textContent;
+    bulk.appendChild(o);
   });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Function: bindBulkHandlers                                                  */
+/* Purpose: Wire the Delete Selected and Move buttons once on first load.     */
+/* -------------------------------------------------------------------------- */
+function bindBulkHandlers() {
+  if (bulkHandlersBound) return;
+
+  document.getElementById("btn-bulk-delete")?.addEventListener("click", async () => {
+    const ids = [...selectedJobIds];
+    if (!ids.length) return;
+    const n = ids.length;
+    const confirmed = await showConfirm(
+      `Delete ${n} job${n === 1 ? "" : "s"} and all stored data?`,
+      { title: "Delete Jobs", confirmText: "Delete", danger: true }
+    );
+    if (!confirmed) return;
+    const btn = document.getElementById("btn-bulk-delete");
+    try {
+      if (btn) { btn.disabled = true; btn.innerHTML = "…"; }
+      for (const jobId of ids) {
+        await deleteJob(jobId);
+        jobs = jobs.filter((j) => j.job_id !== jobId);
+        selectedJobIds.delete(jobId);
+      }
+      renderJobsTable();
+    } catch (error) {
+      await showAlert(`Delete failed: ${error.message}`, { title: "Error" });
+      renderJobsTable();
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = ICON_TRASH; }
+    }
+  });
+
+  document.getElementById("btn-bulk-move")?.addEventListener("click", async () => {
+    const ids      = [...selectedJobIds];
+    const folderId = document.getElementById("bulk-folder-select")?.value || null;
+    if (!ids.length) return;
+    const btn = document.getElementById("btn-bulk-move");
+    try {
+      if (btn) { btn.disabled = true; btn.innerHTML = "…"; }
+      for (const jobId of ids) {
+        await moveJobToFolder(jobId, folderId);
+        const job = jobs.find((j) => j.job_id === jobId);
+        if (job) job.folder_id = folderId || "";
+      }
+      selectedJobIds.clear();
+      renderJobsTable();
+    } catch (error) {
+      await showAlert(`Move failed: ${error.message}`, { title: "Error" });
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = ICON_ARROW; }
+    }
+  });
+
+  bulkHandlersBound = true;
 }
 
 // -----------------------------------------------------------------------------

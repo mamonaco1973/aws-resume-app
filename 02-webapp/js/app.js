@@ -4,14 +4,21 @@
 /* resume selector, and job list on DOMContentLoaded.                         */
 /* ========================================================================== */
 
-import { createJob, listResumes } from "./api.js";
-import { loadJobs, hasPendingJobs } from "./jobs.js";
-import { bindResumeHandlers, openResumeManager } from "./resumes.js";
-import { getLoginUrl, getLogoutUrl, isLoggedIn } from "./auth.js";
+import { createJob, listResumes,
+         listFolders, createFolder, deleteFolder } from "./api.js";
+import { loadJobs, hasPendingJobs,
+         setFolderFilter, setStatusFilter,
+         setSearchFilter }                         from "./jobs.js";
+import { bindResumeHandlers, openResumeManager }   from "./resumes.js";
+import { getLoginUrl, getLogoutUrl, isLoggedIn }   from "./auth.js";
+import { showAlert, showConfirm, showPrompt }       from "./modal.js";
 
 let lastSelectedResumeId = "";
-let autoRefreshTimer = null;
-let countdownInterval = null;
+let autoRefreshTimer     = null;
+let countdownInterval    = null;
+let folders              = [];
+let currentFolderId      = "";
+
 const AUTO_REFRESH_SECONDS = 5;
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -25,6 +32,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   try {
+    restoreFilterState();
+    await loadFolders();
     await refreshApp();
   } catch (error) {
     console.error("Failed to load dashboard:", error);
@@ -68,12 +77,13 @@ function bindUiHandlers() {
       resumeModal?.classList.add("hidden");
       resetNewJobForm();
       await populateResumeSelect();
+      populateJobFolderSelect();
       updateSourceFields();
       newJobModal?.classList.remove("hidden");
       updateNewJobFormValidation();
     } catch (error) {
       console.error("Failed to load resumes:", error);
-      window.alert(`Failed to load resumes: ${error.message}`);
+      await showAlert(`Failed to load resumes: ${error.message}`, { title: "Error" });
     }
   });
 
@@ -99,6 +109,7 @@ function bindUiHandlers() {
   // ---------------------------------------------------------------------------
 
   sourceType?.addEventListener("change", () => {
+    setCookie("jobFilter_sourceType", sourceType.value);
     updateSourceFields();
   });
 
@@ -143,6 +154,72 @@ document
 });
 
   document.getElementById("btn-refresh")?.addEventListener("click", refreshApp);
+
+  // ---------------------------------------------------------------------------
+  // Folder dropdown
+  // ---------------------------------------------------------------------------
+
+  document.getElementById("folder-select")?.addEventListener("change", (e) => {
+    currentFolderId = e.target.value;
+    setFolderFilter(currentFolderId);
+    setCookie("jobFilter_folder", currentFolderId);
+    updateDeleteFolderButton();
+    refreshApp();
+  });
+
+  document.getElementById("btn-new-folder")?.addEventListener("click", async () => {
+    const name = await showPrompt("Folder name", {
+      title: "New Folder", placeholder: "Enter folder name...", confirmText: "Create",
+    });
+    if (!name) return;
+    if (folders.some((f) => f.name.toLowerCase() === name.toLowerCase())) {
+      await showAlert(`A folder named "${name}" already exists.`, { title: "Duplicate Folder" });
+      return;
+    }
+    try {
+      await createFolder({ name });
+      await loadFolders();
+    } catch (error) {
+      await showAlert(`Failed to create folder: ${error.message}`, { title: "Error" });
+    }
+  });
+
+  document.getElementById("btn-delete-folder")?.addEventListener("click", async () => {
+    if (!currentFolderId) return;
+    const folder = folders.find((f) => f.folder_id === currentFolderId);
+    const label  = folder?.name || currentFolderId;
+    const confirmed = await showConfirm(
+      `Delete folder "${label}"? Jobs inside will move to All Jobs.`,
+      { title: "Delete Folder", confirmText: "Delete", danger: true }
+    );
+    if (!confirmed) return;
+    try {
+      await deleteFolder(currentFolderId);
+      currentFolderId = "";
+      setFolderFilter("");
+      setCookie("jobFilter_folder", "");
+      await loadFolders();
+      await refreshApp();
+    } catch (error) {
+      await showAlert(`Failed to delete folder: ${error.message}`, { title: "Error" });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Filter bar — status + search
+  // ---------------------------------------------------------------------------
+
+  document.getElementById("filter-status")?.addEventListener("change", (e) => {
+    setStatusFilter(e.target.value);
+    setCookie("jobFilter_status", e.target.value);
+    refreshApp();
+  });
+
+  document.getElementById("filter-search")?.addEventListener("input", (e) => {
+    setSearchFilter(e.target.value);
+    setCookie("jobFilter_search", e.target.value);
+    refreshApp();
+  });
 
   // ---------------------------------------------------------------------------
   // Sign in
@@ -253,7 +330,8 @@ async function populateResumeSelect() {
 function resetNewJobForm() {
   document.getElementById("new-job-form")?.reset();
 
-  document.getElementById("source-type").value = "url";
+  const savedSourceType = getCookie("jobFilter_sourceType") || "url";
+  document.getElementById("source-type").value = savedSourceType;
   document.getElementById("job-url").value = "";
   document.getElementById("job-description").value = "";
   document.getElementById("linkedin-job-ids").value = "";
@@ -476,7 +554,7 @@ async function refreshApp() {
     await loadJobs();
   } catch (error) {
     console.error("Failed to refresh dashboard:", error);
-    window.alert(`Failed to refresh jobs: ${error.message}`);
+    await showAlert(`Failed to refresh jobs: ${error.message}`, { title: "Error" });
   } finally {
     if (refreshButton) refreshButton.disabled = false;
     table?.classList.remove("loading");
@@ -491,62 +569,39 @@ async function refreshApp() {
 /*          URL-based job submissions.                                        */
 /* -------------------------------------------------------------------------- */
 async function submitJobScoringRequest() {
-  const resumeId = document.getElementById("resume-select")?.value.trim() || "";
+  const resumeId  = document.getElementById("resume-select")?.value.trim() || "";
   const sourceType = document.getElementById("source-type")?.value || "url";
+  const folderId   = document.getElementById("new-job-folder-select")?.value || null;
+  const base       = { resume_id: resumeId, ...(folderId ? { folder_id: folderId } : {}) };
 
-  // ---------------------------------------------------------------------------
-  // URL source
-  // ---------------------------------------------------------------------------
   if (sourceType === "url") {
-    const jobUrl = document.getElementById("job-url")?.value.trim() || "";
-
     await createJob({
-      resume_id: resumeId,
+      ...base,
       source_type: "url",
-      job_url: jobUrl
+      job_url: document.getElementById("job-url")?.value.trim() || "",
     });
-
     return;
   }
 
-  // ---------------------------------------------------------------------------
-  // Raw job description source
-  // ---------------------------------------------------------------------------
   if (sourceType === "raw_text") {
-    const jobDescription =
-      document.getElementById("job-description")?.value.trim() || "";
-
     await createJob({
-      resume_id: resumeId,
+      ...base,
       source_type: "raw_text",
-      job_description: jobDescription
+      job_description: document.getElementById("job-description")?.value.trim() || "",
     });
-
     return;
   }
 
-  // ---------------------------------------------------------------------------
-  // LinkedIn job IDs
-  // ---------------------------------------------------------------------------
   if (sourceType === "linkedin_job_id") {
-    const jobIdsText =
-      document.getElementById("linkedin-job-ids")?.value.trim() || "";
-
-    const jobIds = jobIdsText
-      .split("\n")
-      .map((id) => id.trim())
-      .filter((id) => id.length > 0);
-
-    for (const jobId of jobIds) {
-      const jobUrl = `https://www.linkedin.com/jobs/view/${jobId}`;
-
+    const ids = (document.getElementById("linkedin-job-ids")?.value.trim() || "")
+      .split("\n").map((id) => id.trim()).filter(Boolean);
+    for (const id of ids) {
       await createJob({
-        resume_id: resumeId,
+        ...base,
         source_type: "url",
-        job_url: jobUrl
+        job_url: `https://www.linkedin.com/jobs/view/${id}`,
       });
     }
-
     return;
   }
 }
@@ -569,19 +624,108 @@ function updateAuthButtons() {
   if (loggedIn) {
     signIn?.classList.add("hidden");
     signOut?.classList.remove("hidden");
+    document.getElementById("filter-bar")?.classList.remove("hidden");
 
     refresh?.removeAttribute("disabled");
     scoreJob?.removeAttribute("disabled");
     manageResumes?.removeAttribute("disabled");
-
   } else {
     signIn?.classList.remove("hidden");
     signOut?.classList.add("hidden");
+    document.getElementById("filter-bar")?.classList.add("hidden");
 
     refresh?.setAttribute("disabled", "true");
     scoreJob?.setAttribute("disabled", "true");
     manageResumes?.setAttribute("disabled", "true");
   }
+}
+
+/* ================================================================================
+/* Folders
+/* ================================================================================ */
+
+/* -------------------------------------------------------------------------- */
+/* Function: loadFolders                                                       */
+/* Purpose: Fetch the folder list and repopulate the folder dropdown,         */
+/*          preserving the current selection when it still exists.            */
+/* -------------------------------------------------------------------------- */
+async function loadFolders() {
+  try {
+    folders = await listFolders();
+  } catch (_) {
+    folders = [];
+  }
+
+  const select = document.getElementById("folder-select");
+  if (!select) return;
+
+  select.innerHTML = `<option value="">All Jobs</option>`;
+  folders.forEach((f) => {
+    const opt = document.createElement("option");
+    opt.value       = f.folder_id;
+    opt.textContent = f.name;
+    select.appendChild(opt);
+  });
+
+  const stillValid = folders.some((f) => f.folder_id === currentFolderId);
+  if (!stillValid) { currentFolderId = ""; setCookie("jobFilter_folder", ""); }
+  select.value = currentFolderId;
+  setFolderFilter(currentFolderId);
+  updateDeleteFolderButton();
+}
+
+function updateDeleteFolderButton() {
+  const btn = document.getElementById("btn-delete-folder");
+  if (!btn) return;
+  if (currentFolderId) btn.classList.remove("hidden");
+  else                 btn.classList.add("hidden");
+}
+
+function populateJobFolderSelect() {
+  const select = document.getElementById("new-job-folder-select");
+  if (!select) return;
+  select.innerHTML = `<option value="">No Folder</option>`;
+  folders.forEach((f) => {
+    const opt = document.createElement("option");
+    opt.value       = f.folder_id;
+    opt.textContent = f.name;
+    select.appendChild(opt);
+  });
+  select.value = currentFolderId || "";
+}
+
+/* -------------------------------------------------------------------------- */
+/* Function: restoreFilterState                                                */
+/* Purpose: Read saved filter cookies and apply them to the filter bar and    */
+/*          in-memory state before the first data load.                       */
+/* -------------------------------------------------------------------------- */
+function restoreFilterState() {
+  const savedFolder = getCookie("jobFilter_folder");
+  const savedStatus = getCookie("jobFilter_status");
+  const savedSearch  = getCookie("jobFilter_search");
+
+  if (savedFolder) currentFolderId = savedFolder;
+
+  const statusEl = document.getElementById("filter-status");
+  const searchEl = document.getElementById("filter-search");
+  if (savedStatus && statusEl) { statusEl.value = savedStatus; setStatusFilter(savedStatus); }
+  if (savedSearch  && searchEl) { searchEl.value = savedSearch;  setSearchFilter(savedSearch); }
+}
+
+/* ================================================================================
+/* Cookie Helpers
+/* ================================================================================ */
+
+function setCookie(name, value) {
+  const expires = new Date(Date.now() + 30 * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+}
+
+function getCookie(name) {
+  return document.cookie.split("; ").reduce((found, part) => {
+    const [k, v] = part.split("=");
+    return k === name ? decodeURIComponent(v || "") : found;
+  }, "");
 }
 
 /* -------------------------------------------------------------------------- */
