@@ -49,6 +49,9 @@ function getJobIdFromUrl() {
 /*          object, then reveal the content panel and hide the loading state. */
 /* -------------------------------------------------------------------------- */
 function renderJob(job, folders = []) {
+  const titleParts = [job.job_title, job.company].filter(Boolean);
+  if (titleParts.length) document.title = titleParts.join(" | ");
+
   setText("job-title", job.job_title || "—");
   setText("job-company", job.company || "—");
   setText("job-status", job.status || "—");

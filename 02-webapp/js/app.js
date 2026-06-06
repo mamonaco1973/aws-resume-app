@@ -241,11 +241,40 @@ document
   });
 
   // ---------------------------------------------------------------------------
-  // Sign in
+  // Help modal
   // ---------------------------------------------------------------------------
 
+  const helpModal = document.getElementById("help-modal");
+  document.getElementById("btn-help")?.addEventListener("click", () => {
+    helpModal?.classList.remove("hidden");
+  });
+  document.getElementById("btn-help-close")?.addEventListener("click", () => {
+    helpModal?.classList.add("hidden");
+  });
+  helpModal?.addEventListener("click", (e) => {
+    if (e.target === helpModal) helpModal.classList.add("hidden");
+  });
+
+  // ---------------------------------------------------------------------------
+  // Sign in — open preview modal; actual redirect happens inside the modal
+  // ---------------------------------------------------------------------------
+
+  const signInModal = document.getElementById("sign-in-modal");
+
   btnSignIn?.addEventListener("click", () => {
+    signInModal?.classList.remove("hidden");
+  });
+
+  document.getElementById("btn-cognito-sign-in")?.addEventListener("click", () => {
     window.location.href = getLoginUrl();
+  });
+
+  document.getElementById("btn-sign-in-modal-close")?.addEventListener("click", () => {
+    signInModal?.classList.add("hidden");
+  });
+
+  signInModal?.addEventListener("click", (e) => {
+    if (e.target === signInModal) signInModal.classList.add("hidden");
   });
 
   // ---------------------------------------------------------------------------
@@ -349,7 +378,7 @@ async function populateResumeSelect() {
 function resetNewJobForm() {
   document.getElementById("new-job-form")?.reset();
 
-  const savedSourceType = getCookie("jobFilter_sourceType") || "url";
+  const savedSourceType = getCookie("jobFilter_sourceType") || "linkedin_job_id";
   document.getElementById("source-type").value = savedSourceType;
   document.getElementById("job-url").value = "";
   document.getElementById("job-description").value = "";
@@ -798,8 +827,9 @@ function showNotLoggedInMessage() {
 
   if (emptyState) {
     emptyState.classList.remove("hidden");
-    emptyState.innerHTML = `
-      <p>Please sign in to use the application.</p>
-    `;
+    emptyState.innerHTML = `<p>Please sign in to use the application.</p>`;
   }
+
+  // Auto-open the sign-in modal for unauthenticated visitors
+  document.getElementById("sign-in-modal")?.classList.remove("hidden");
 }
