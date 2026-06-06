@@ -6,7 +6,8 @@
 
 import { getJob, updateJobNotes,
          listAttachments, uploadAttachment,
-         downloadAttachment, deleteAttachment } from "./api.js";
+         downloadAttachment, deleteAttachment,
+         listFolders } from "./api.js";
 
 // SVG icons used in the attachment list
 const ICON_CLIP     = `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`;
@@ -25,8 +26,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindUploadHandler(jobId);
 
   try {
-    const job = await getJob(jobId);
-    renderJob(job);
+    const [job, folders] = await Promise.all([getJob(jobId), listFolders()]);
+    renderJob(job, folders);
     await refreshAttachments(jobId);
   } catch (error) {
     renderError(`Failed to load job: ${error.message}`);
@@ -47,7 +48,7 @@ function getJobIdFromUrl() {
 /* Purpose: Populate every field in the job detail view from the API response */
 /*          object, then reveal the content panel and hide the loading state. */
 /* -------------------------------------------------------------------------- */
-function renderJob(job) {
+function renderJob(job, folders = []) {
   setText("job-title", job.job_title || "—");
   setText("job-company", job.company || "—");
   setText("job-status", job.status || "—");
@@ -57,6 +58,7 @@ function renderJob(job) {
   setText("job-source-type", job.source_type || "—");
 
   renderJobUrl(job.job_url);
+  renderJobFolder(job.folder_id, folders);
   renderTextBlock("job-analysis", job.job_analysis);
   renderTextBlock("job-description", job.job_description);
   renderTextBlock("job-resume", job.resume_snapshot);
@@ -91,6 +93,23 @@ function renderJobUrl(value) {
       ${escapeHtml(value)}
     </a>
   `;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Function: renderJobFolder                                                   */
+/* Purpose: Resolve folder_id to a name and display it, or dash if none.     */
+/* -------------------------------------------------------------------------- */
+function renderJobFolder(folderId, folders) {
+  const element = document.getElementById("job-folder");
+  if (!element) return;
+
+  if (!folderId) {
+    element.textContent = "—";
+    return;
+  }
+
+  const folder = folders.find((f) => f.folder_id === folderId);
+  element.textContent = folder ? folder.name : "—";
 }
 
 /* -------------------------------------------------------------------------- */

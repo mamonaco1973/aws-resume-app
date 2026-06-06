@@ -566,6 +566,7 @@ def get_job(event):
             "resume_snapshot": resume_snapshot_text,
             "job_description": job_description_text,
             "job_analysis": job_analysis_text,
+            "folder_id": item.get("folder_id", ""),
             "notes": notes_text,
             "created_at": item.get("created_at"),
             "updated_at": item.get("updated_at")
