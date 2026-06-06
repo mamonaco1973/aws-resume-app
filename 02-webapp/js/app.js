@@ -269,14 +269,6 @@ document
     window.location.href = getLoginUrl();
   });
 
-  document.getElementById("btn-sign-in-modal-close")?.addEventListener("click", () => {
-    signInModal?.classList.add("hidden");
-  });
-
-  signInModal?.addEventListener("click", (e) => {
-    if (e.target === signInModal) signInModal.classList.add("hidden");
-  });
-
   // ---------------------------------------------------------------------------
   // Sign out
   // ---------------------------------------------------------------------------
