@@ -80,6 +80,6 @@ output "frontend_bucket_name" {
 # ---------------------------------------------------------------------------------
 
 output "frontend_website_url" {
-  description = "Public S3 website endpoint for the web application"
-  value       = "https://${aws_s3_bucket.frontend.bucket}.s3.${var.region}.amazonaws.com"
+  description = "Custom domain URL for the web application"
+  value       = "https://myjobs.mikes-cloud-solutions.com"
 }
