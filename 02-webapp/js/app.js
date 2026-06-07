@@ -173,8 +173,17 @@ document
     return;
   }
 
-  await submitJobScoringRequest();
-  document.getElementById("new-job-modal")?.classList.add("hidden");
+  const submitBtn = document.getElementById("submit-new-job");
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Submitting..."; }
+  const newJobModal = document.getElementById("new-job-modal");
+  newJobModal?.classList.add("modal-submitting");
+  try {
+    await submitJobScoringRequest();
+  } finally {
+    newJobModal?.classList.remove("modal-submitting");
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Submit"; }
+  }
+  newJobModal?.classList.add("hidden");
   resetNewJobForm();
   await refreshApp();
 
