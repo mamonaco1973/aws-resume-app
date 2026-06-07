@@ -95,7 +95,15 @@ function bindUiHandlers() {
     try {
       resumeModal?.classList.add("hidden");
       resetNewJobForm();
-      await populateResumeSelect();
+      const hasResumes = await populateResumeSelect();
+      if (!hasResumes) {
+        await showAlert(
+          "Please define a resume before scoring a job.",
+          { title: "No Resume Found" }
+        );
+        await openResumeManager();
+        return;
+      }
       populateJobFolderSelect();
       updateSourceFields();
       newJobModal?.classList.remove("hidden");
@@ -340,7 +348,7 @@ async function populateResumeSelect() {
     option.disabled = true;
     option.selected = true;
     resumeSelect.appendChild(option);
-    return;
+    return false;
   }
 
   resumes.forEach((resume) => {
@@ -360,6 +368,7 @@ async function populateResumeSelect() {
     resumeSelect.value = resumes[0].resume_id;
     lastSelectedResumeId = resumes[0].resume_id;
   }
+  return true;
 }
 
 /* -------------------------------------------------------------------------- */
