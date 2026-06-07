@@ -9,10 +9,10 @@ It uses **Terraform** and **Python (boto3)** to provision and deploy an
 authentication**, allowing users to upload resumes and submit job postings for
 compatibility scoring — all without running or managing any EC2 instances.
 
-Users submit a resume and a job posting (as a URL or raw text). The application
-uses **AWS Bedrock (Claude Haiku)** to extract structured job metadata and score
-the resume against the job on a scale of 0–100, with a written analysis broken
-into **Strengths** and **Weaknesses** sections.
+Users submit a resume and a job posting (as a URL, raw text, or LinkedIn job
+ID). The application uses **AWS Bedrock (Claude Haiku)** to extract structured
+job metadata and score the resume against the job on a scale of 0–100, with a
+written analysis broken into **Strengths** and **Weaknesses** sections.
 
 Authentication and authorization are handled natively by **Amazon Cognito**,
 allowing users to sign in with email-based credentials and obtain JWT tokens
@@ -38,21 +38,37 @@ requires only editing one export line in `bedrock-config.sh`.
 
 1. **AI-Powered Resume Scoring** – AWS Bedrock (Claude Haiku) extracts job
    metadata and scores resume-to-job compatibility (0–100) with a written
-   Strengths/Weaknesses analysis.
+   Strengths/Weaknesses analysis. Scoring uses `temperature=0` (greedy
+   decoding) to produce consistent, deterministic scores across repeated
+   submissions of the same resume and job.
 2. **Asynchronous Job Processing** – SQS decouples job submission from scoring.
    The API returns immediately with a `submitted` status while a worker Lambda
    processes the job in the background.
 3. **Native AWS Authentication** – Cognito User Pools issue and manage JWT
    tokens, eliminating the need for custom authentication logic in Lambda.
+   API Gateway validates Cognito JWTs before invoking Lambda.
 4. **Serverless Event-Driven Architecture** – No EC2 instances, containers, or
    VPC networking required. Lambda scales on demand and costs nothing at idle.
 5. **Infrastructure as Code (IaC)** – Terraform provisions all resources —
    API Gateway, Lambda, DynamoDB, SQS, Cognito, S3, IAM, and Bedrock
    permissions — in a repeatable, auditable way.
-6. **Single-Table DynamoDB Design** – Resumes and jobs share one table using
-   composite partition/sort keys for per-user data isolation.
-7. **Browser-Based Frontend** – A static S3-hosted SPA demonstrates the full
-   OAuth2 authorization code flow and real-time polling for scoring results.
+6. **Single-Table DynamoDB Design** – Resumes, jobs, folders, and per-user
+   token usage share one table using composite partition/sort keys for
+   per-user data isolation without secondary indexes.
+7. **Bedrock Token Usage Tracking** – Cumulative Bedrock token consumption is
+   tracked per user in DynamoDB using atomic increments. A configurable
+   per-user lifetime cap (default 100,000 tokens) is enforced at job
+   submission. The UI displays a live circular ring indicator with remaining
+   tokens.
+8. **File Attachments** – Each scored job can have arbitrary files attached
+   (correspondence, tailored resumes, cover letters, etc.). Files are stored
+   in S3 and transferred as base64 JSON through the API (10 MB per file
+   limit). The dashboard shows a paperclip icon on rows with attachments.
+   Full upload/download/delete management is in the job detail modal.
+9. **Browser-Based Frontend** – A static S3-hosted SPA ("My Jobs") demonstrates
+   the full OAuth2 authorization code flow, real-time polling for scoring
+   results, job folder organization, bulk operations, score ring indicator,
+   job detail modal with attachment CRUD, and help modal.
 
 ## Architecture
 
@@ -141,17 +157,20 @@ When the deployment completes, the following resources are created:
   - No long-lived credentials embedded in application code
 
 - **Amazon DynamoDB Table:**
-  - Single-table design storing both resumes and jobs for each user
-  - Partition key `USER#<id>` and sort key `RESUME#<id>` / `JOB#<id>`
-    provide per-user data isolation without a secondary index
+  - Single-table design storing resumes, jobs, folders, and per-user
+    token usage for each user
+  - Partition key `USER#<id>` and sort keys `RESUME#<id>`, `JOB#<id>`,
+    `FOLDER#<id>`, and `USER#USAGE` provide per-user data isolation
+    without secondary indexes
   - On-demand capacity mode for automatic scaling and cost efficiency
 
 - **AWS Lambda Functions:**
   - **API Lambda** (`handler.py`) — routes all API Gateway requests to
-    `resumes.py` or `jobs.py` handler modules
+    handler modules by method + path; covers resumes, jobs, folders,
+    attachments, user registration, and token usage
   - **Worker Lambda** (`worker.py`) — SQS-triggered; fetches job URLs,
     calls Bedrock for extraction and scoring, writes results to S3 and
-    DynamoDB
+    DynamoDB, atomically increments `tokens_used` per user
 
 - **Amazon SQS:**
   - Main queue receives job scoring requests from the API Lambda
@@ -180,9 +199,29 @@ When the deployment completes, the following resources are created:
   - AWS proxy integration passes full request context to the API Lambda
 
 - **Static Web Application (S3):**
-  - Vanilla JavaScript SPA with no build step or framework dependencies
-  - Integrates with Cognito Hosted UI for OAuth2 authorization code flow
-  - Polls `GET /jobs` to surface scoring results as they complete
+  - Vanilla JavaScript SPA ("My Jobs") with no build step or framework
+    dependencies
+  - Custom sign-in modal shows when not authenticated; "Sign In" button
+    redirects to the Cognito Hosted UI for OAuth2 authorization code flow
+  - Polls `GET /jobs` (5 s auto-refresh) to surface scoring results as
+    they complete; spinner and countdown shown in the header while jobs
+    are pending
+  - **Token usage ring** in the filter bar shows remaining lifetime
+    tokens as a circular SVG arc; turns red at 80% consumed
+  - **Folder management** — jobs can be organized into named folders;
+    filter bar lets users switch between folders or view all jobs
+  - **Bulk operations** — select multiple jobs via checkboxes; bulk
+    delete or bulk move to a folder from the action bar
+  - **File attachments** — each job can hold arbitrary attachments;
+    the dashboard shows a paperclip icon on rows with attachments; full
+    manage (upload / download / delete) is in the job detail modal
+  - **Job detail modal** — click a job title to open an inline modal
+    with the score ring, analysis, attachments, and notes; external
+    link icon opens the full `job.html` detail page
+  - **Score badges** — color-coded score display: green (≥75),
+    amber (≥50), red (<50)
+  - All confirmations and prompts use styled in-page modal dialogs; no
+    `window.alert` / `window.confirm` / `window.prompt` calls
   - `config.js` is generated at deploy time from a template — never
     edited directly
 
@@ -212,11 +251,31 @@ by the Cognito User Pool.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| POST | `/jobs` | Submit a job for scoring (URL or raw text) |
+| POST | `/jobs` | Submit a job for scoring (URL, raw text, or LinkedIn ID) |
 | GET | `/jobs` | List all jobs for the authenticated user |
 | GET | `/jobs/{job_id}` | Retrieve a job with score and analysis |
 | PATCH | `/jobs/{job_id}/notes` | Update user notes on a job |
+| PATCH | `/jobs/{job_id}/folder` | Move a job to a folder |
 | DELETE | `/jobs/{job_id}` | Delete a job and all associated S3 artifacts |
+| GET | `/jobs/{job_id}/attachments` | List attachments for a job |
+| POST | `/jobs/{job_id}/attachments` | Upload a file attachment (base64 JSON, 10 MB max) |
+| GET | `/jobs/{job_id}/attachments/{att_id}` | Download an attachment (base64 JSON response) |
+| DELETE | `/jobs/{job_id}/attachments/{att_id}` | Delete an attachment |
+
+### Folders
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/folders` | Create a named folder |
+| GET | `/folders` | List all folders for the authenticated user |
+| DELETE | `/folders/{folder_id}` | Delete a folder (jobs remain, unassigned) |
+
+### Usage & Registration
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | `/register` | Idempotent first-login registration; enforces user cap |
+| GET | `/usage` | Return `tokens_used` and `token_limit` for the authenticated user |
 
 ### Request & Response Characteristics
 
@@ -227,6 +286,8 @@ by the Cognito User Pool.
 | Identity Source | JWT `cognito:username` or `sub` claim |
 | Content Type | `application/json` |
 | Response Format | JSON |
+| Timestamps | ISO-8601 UTC strings (compatible with JS `new Date()`) |
+| Token cap exceeded | `429` with `error` message |
 | Error Handling | Standard HTTP status codes |
 
 ---
@@ -307,7 +368,7 @@ Returns immediately with `submitted` status while scoring runs asynchronously.
 | source_type | string | Yes | `url` or `raw_text` |
 | job_url | string | If `url` | URL of the job posting |
 | job_description | string | If `raw_text` | Full job description text |
-| notes | string | No | Optional user notes |
+| folder_id | string | No | Folder to assign the job to on creation |
 
 **Example Response (200):**
 ```json
@@ -354,6 +415,136 @@ until `status` is `Scored` or `Error`.
 
 ---
 
+### GET /usage
+
+**Purpose:**
+Return the authenticated user's cumulative Bedrock token consumption and their
+configured limit. Used by the frontend to render the token usage ring.
+
+**Example Response (200):**
+```json
+{
+  "tokens_used": 17432,
+  "token_limit": 100000
+}
+```
+
+The `token_limit` can be raised or reset per user by editing the
+`USER#<uid> / USER#USAGE` item directly in the DynamoDB console.
+Set `tokens_used` to `0` to reset a user's counter without redeploying.
+
+---
+
+### POST /jobs/{job_id}/attachments
+
+**Purpose:**
+Upload a file attachment to a scored job. Files are stored in S3; metadata
+(filename, size, content type, upload timestamp, attachment ID) is appended to
+the `attachments` list on the DynamoDB job item.
+
+**Request Body (JSON):**
+```json
+{
+  "filename": "cover-letter.pdf",
+  "content_type": "application/pdf",
+  "data": "<base64-encoded file bytes>"
+}
+```
+
+**Parameters:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| filename | string | Yes | Original filename (preserved in S3 and response) |
+| content_type | string | Yes | MIME type (e.g. `application/pdf`, `image/png`) |
+| data | string | Yes | Base64-encoded file bytes. 10 MB hard limit |
+
+**Example Response (200):**
+```json
+{
+  "attachment_id": "c3d4e5f6-...",
+  "filename": "cover-letter.pdf"
+}
+```
+
+---
+
+### GET /jobs/{job_id}/attachments
+
+**Purpose:**
+List all attachments for a job. Returns metadata only — no file bytes.
+
+**Example Response (200):**
+```json
+[
+  {
+    "attachment_id": "c3d4e5f6-...",
+    "filename": "cover-letter.pdf",
+    "content_type": "application/pdf",
+    "size": 45312,
+    "uploaded_at": "2026-03-17T19:10:00+00:00"
+  }
+]
+```
+
+---
+
+### GET /jobs/{job_id}/attachments/{att_id}
+
+**Purpose:**
+Download an attachment. Returns the file bytes as base64 JSON.
+
+**Example Response (200):**
+```json
+{
+  "attachment_id": "c3d4e5f6-...",
+  "filename": "cover-letter.pdf",
+  "content_type": "application/pdf",
+  "data": "<base64-encoded file bytes>"
+}
+```
+
+The frontend decodes `data` via `atob()` → `Uint8Array` → `Blob` and triggers
+a browser download using a temporary object URL.
+
+---
+
+### DELETE /jobs/{job_id}/attachments/{att_id}
+
+**Purpose:**
+Delete an attachment. Removes the S3 object and filters the `attachments` list
+on the DynamoDB job item using a read-modify-write (not a native list remove,
+which requires exact item equality).
+
+**Response:** `200 {}` on success.
+
+---
+
+## Bedrock Token Tracking
+
+Every Bedrock inference call in the worker function captures
+`usage.input_tokens` and `usage.output_tokens` from the response and writes
+the total to DynamoDB using an atomic `ADD` expression, so concurrent jobs
+never lose counts.
+
+The per-user cap is enforced in the API function before the job is published
+to SQS. When the limit is reached, `POST /jobs` returns `429`:
+
+```json
+{
+  "error": "Token limit reached. You have used your 100,000-token lifetime allowance."
+}
+```
+
+To manage limits in the DynamoDB console:
+
+- **Reset a user's counter:** set `tokens_used = 0` in the
+  `USER#<uid> / USER#USAGE` item
+- **Raise a user's limit:** set `token_limit` to the desired value in the
+  same item (e.g. `500000`); the default is 100,000
+
+---
+
 ## Changing the Bedrock Model
 
 The model is parameterized end-to-end. To retarget, edit the `export` line in
@@ -392,17 +583,18 @@ The full workflow is:
 
 ### 1. Sign In
 
-Click **Sign In** to be redirected to the **Cognito Hosted UI**. On first use,
-click **Sign up** and register with your email address. Cognito will send a
-verification code — enter it to confirm your account, then sign in.
+The **My Jobs** sign-in modal opens automatically when you are not
+authenticated. Click **Sign In** to be redirected to the **Cognito Hosted UI**.
+On first use, click **Sign up** and register with your email address. Cognito
+will send a verification code — enter it to confirm your account, then sign in.
 
-After authentication you are redirected back to the **Job Scoring Dashboard**.
+After authentication you are redirected back to the **My Jobs** dashboard.
 
 ### 2. Add a Resume
 
 Before scoring any jobs you need at least one resume on file.
 
-1. Click **Manage Resumes**.
+1. Click the **Manage Resumes** icon button in the header.
 2. Click **New Resume**, give it a name (e.g. `Software Engineer Resume`), and
    paste the full plain-text content of your resume into the text area.
 3. Click **Create Resume**. The resume is stored in S3 and available
@@ -412,11 +604,16 @@ You can create multiple resumes (e.g. one tailored for backend roles, one for
 management) and choose between them at scoring time. Use the sidebar to switch
 between resumes, edit text, or delete ones you no longer need.
 
+> **Tip:** If you click **Score New Job** before any resume exists, the app
+> shows an alert and automatically opens the Manage Resumes dialog so you can
+> add one without navigating away.
+
 ### 3. Score a Job
 
-1. Click **Score New Job**.
+1. Click the **Score New Job** icon button in the header.
 2. Select the resume you want to score against from the **Resume** dropdown.
-3. Choose a **Source Type**:
+3. Optionally assign the job to a **Folder** to keep your dashboard organized.
+4. Choose a **Source Type**:
 
    | Source Type | When to use |
    |-------------|-------------|
@@ -424,43 +621,90 @@ between resumes, edit text, or delete ones you no longer need.
    | **Paste Job Description** | Paste the raw job description text directly — useful when a URL requires login |
    | **LinkedIn Job IDs** | Enter one or more numeric LinkedIn job IDs (one per line) to batch-submit multiple jobs at once |
 
-4. Click **Submit**. The job is queued immediately and the modal closes.
+5. Click **Submit**. The job is queued immediately and the modal closes.
 
 ### 4. Monitor Scoring Progress
 
 The dashboard shows all submitted jobs. While a job is being processed:
 
-- The **Status** badge for that row pulses between `submitted` and `Scoring`.
-- A **spinner and countdown** appear in the toolbar — the list refreshes
+- The **Status** badge for that row shows `submitted` or `Scoring`.
+- A **spinner and countdown** appear in the header — the list refreshes
   automatically every 5 seconds until all pending jobs reach a terminal state.
-- You can also click **Refresh** at any time to poll immediately.
+- You can also click the **Refresh** icon at any time to poll immediately.
 
 Scoring typically takes **15–90 seconds** depending on Bedrock cache state.
-The first request for a given job type may take longer; repeat submissions
-against similar job descriptions are usually faster due to prompt caching.
 
 ### 5. View the Analysis
 
-Once the status changes to **Scored**, click **Open** to view the full result.
-The job detail page shows:
+Once the status changes to **Scored**, click the **job title** to open the
+inline **job detail modal**. The modal shows:
 
-- **Score** — a 0–100 compatibility rating
-- **Overview** — 2–3 sentences rationalising why the score is what it is
-- **Strengths** — what your resume does well relative to the job requirements
-- **Weaknesses** — gaps or missing qualifications the employer is likely to notice
+- **Score** — a 0–100 compatibility rating with a color-coded ring (green
+  ≥75, amber ≥50, red <50)
+- **Analysis** — Overview, Strengths, and Weaknesses sections generated by
+  Bedrock
 - **Job Description** — the cleaned job text used for scoring
 - **Resume Snapshot** — the version of your resume that was scored (captured
-  at submission time, so edits to the resume afterwards do not affect past scores)
+  at submission time, so edits to the resume afterwards do not affect past
+  scores)
 
-### 6. Add Notes
+To open the full standalone detail page instead, click the **external link**
+icon next to the job title in the table.
 
-On the job detail page you can type personal notes (interview prep, recruiter
-contact details, application status, etc.) into the **Notes** field and save
-them. Notes are stored in S3 and are private to your account.
+### 6. Attach Files
 
-### 7. Delete Jobs
+In the job detail modal, the **Attachments** accordion lets you upload
+arbitrary files to the job — custom resumes, cover letters, correspondence,
+screenshots, and so on.
 
-Click **Delete** on any row in the dashboard to permanently remove the job
-record and all associated S3 artifacts (job description, resume snapshot,
-analysis, and notes). This action is confirmed via a prompt and cannot be
-undone.
+1. Click **Upload File** and select one or more files (PDFs, Word docs,
+   images, ZIPs, CSVs, and Excel files are accepted; 10 MB per file).
+2. Each file is stored in the S3 backend bucket and its metadata (name, size,
+   type, upload time) is saved in the DynamoDB job item.
+3. Use the **Download** button on any listed file to retrieve it. Use the
+   **Delete** (trash) button to remove it permanently.
+
+### 7. Add Notes
+
+In the job detail modal, type personal notes (interview prep, recruiter contact
+details, application status, etc.) into the **Notes** field and save them.
+Notes are stored in S3 and are private to your account.
+
+### 8. Organize with Folders
+
+Use the **New Folder** icon in the filter bar to create named folders
+(e.g. `Applied`, `Interviewing`, `Rejected`). Jobs can be assigned to a folder
+at submission time or moved later via the **bulk move** action. Use the
+**Folder** dropdown in the filter bar to view only jobs in a specific folder.
+Delete a folder with the **Delete Folder** icon — jobs in the folder are
+unassigned but not deleted.
+
+### 9. Bulk Operations
+
+Check one or more rows in the dashboard to reveal the **bulk action bar**:
+
+- **Delete Selected** — permanently removes all selected jobs and their S3
+  artifacts
+- **Move to Folder** — reassigns all selected jobs to the chosen folder
+
+### 10. Monitor Token Usage
+
+The **Token Usage** indicator in the filter bar shows how many Bedrock tokens
+remain in your lifetime allowance:
+
+- The **circular ring** depletes as tokens are consumed; the arc turns red when
+  80% of the allowance is used
+- The **label** shows remaining tokens in `K` notation (e.g. `82.5K / 100K`)
+- **Hover** over the indicator for exact counts and percentage used
+
+The indicator updates automatically after login and after each job is
+submitted. When the allowance is exhausted, new job submissions are blocked
+until an administrator resets `tokens_used` to `0` in the DynamoDB console
+(`USER#<uid> / USER#USAGE` item).
+
+### 11. Delete Jobs
+
+Select one or more rows and use the bulk delete action. Deletion is confirmed
+via a modal dialog and cannot be undone — the DynamoDB record and all
+associated S3 artifacts (job description, resume snapshot, analysis, notes,
+and attachments) are removed permanently.

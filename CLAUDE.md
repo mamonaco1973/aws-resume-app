@@ -5,9 +5,13 @@ with code in this repository.
 
 ## What This App Does
 
-AWS-based Resume Scoring Application. Users upload resumes and submit
-job postings (URL or raw text); the app uses AWS Bedrock (Claude Sonnet)
-to score resume-to-job compatibility (0--100) asynchronously.
+AWS-based Resume Scoring Application ("My Jobs"). Users upload resumes
+and submit job postings (URL, raw text, or LinkedIn job IDs); the app
+uses AWS Bedrock (Claude Haiku) to score resume-to-job compatibility
+(0--100) asynchronously. Scored jobs support file attachments stored in
+S3 and managed through the job detail modal. Token usage (Bedrock
+inference tokens) is tracked per user in DynamoDB with a configurable
+lifetime cap enforced at submission time.
 
 ## Deployment Commands
 
@@ -53,16 +57,30 @@ There are no test or lint commands configured.
 
 ### Lambda Functions
 
--   **`code/handler.py`** --- API Lambda entry point; routes to
-    `jobs.py` or `resumes.py`
+-   **`code/handler.py`** --- API Lambda entry point; routes all
+    requests by method + path
 -   **`code/worker.py`** --- Worker Lambda; SQS-triggered scoring
-    pipeline using Bedrock
--   **`code/jobs.py`** --- Job CRUD logic
+    pipeline using Bedrock; accumulates token counts in DynamoDB
+-   **`code/jobs.py`** --- Job CRUD logic including folder assignment
 -   **`code/resumes.py`** --- Resume CRUD logic
+-   **`code/attachments.py`** --- Attachment CRUD; base64 JSON transfer,
+    5-file cap, 10 MB per-file limit
+-   **`code/folders.py`** --- Folder CRUD; jobs remain on folder delete
+-   **`code/users.py`** --- User registration (idempotent, USER_CAP
+    enforced) and GET /usage token tracking
 
 ### Data Model (DynamoDB single-table)
 
--   `pk`: `USER#<user_id>`, `sk`: `RESUME#<id>` or `JOB#<id>`
+-   `pk=USER#<user_id>`, `sk=RESUME#<id>` — resume metadata
+-   `pk=USER#<user_id>`, `sk=JOB#<id>` — job metadata + attachments
+    array
+-   `pk=USER#<user_id>`, `sk=FOLDER#<id>` — folder name + metadata
+-   `pk=USER#<user_id>`, `sk=USER#USAGE` — tokens_used, token_limit
+
+Job documents carry an `attachments` List attribute — each element is
+a dict with `attachment_id`, `filename`, `content_type`, `size`, and
+`uploaded_at`. Delete uses read-modify-write (not `list_remove`) to
+avoid equality fragility.
 
 ### S3 Layout (backend bucket)
 
@@ -71,19 +89,26 @@ There are no test or lint commands configured.
     users/USER#{id}/jobs/JOB#{id}/resume_snapshot.txt
     users/USER#{id}/jobs/JOB#{id}/job_analysis.txt
     users/USER#{id}/jobs/JOB#{id}/notes.txt
+    users/USER#{id}/jobs/JOB#{id}/attachments/{att_id}/{filename}
+
+Attachments are transferred as base64 JSON (10 MB hard limit per file)
+— no signed URLs or multipart; avoids IAM and API Gateway content-type
+complications.
 
 ### Key Terraform Variables (`01-core/variables.tf`)
 
 -   `region` --- default `us-east-1`
 -   `bedrock_model_id` --- default
-    `us.anthropic.claude-sonnet-4-5-20250929-v1:0`
+    `us.anthropic.claude-haiku-4-5-20251001-v1:0`
 -   `frontend_bucket_base_name` / `backend_bucket_base_name`
 
 ### Authentication
 
 Cognito User Pool with hosted UI, OAuth2 authorization code flow. All
 API routes require JWT Bearer token. Tokens stored in `localStorage` on
-the frontend.
+the frontend. The SPA shows a custom sign-in modal first; clicking "Sign
+In" redirects to the Cognito Hosted UI. POST /register is called on
+first load after auth to create the user usage record (idempotent).
 
 ### Frontend Config
 
