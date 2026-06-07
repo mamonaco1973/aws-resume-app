@@ -127,3 +127,7 @@ resource "aws_route53_record" "myjobs" {
 output "custom_domain_url" {
   value = "https://myjobs.mikes-cloud-solutions.com"
 }
+
+output "cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.myjobs.id
+}

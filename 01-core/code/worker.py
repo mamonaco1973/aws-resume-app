@@ -218,6 +218,25 @@ def write_s3_text(key, text):
 # =================================================================================
 
 
+def is_over_token_limit(user_id):
+    """Return True if the user has exhausted their lifetime token allowance.
+
+    Re-checked at worker time because multiple jobs may have been queued
+    before the API submission check ran out of budget.
+    """
+    try:
+        resp = table.get_item(
+            Key={"pk": f"USER#{user_id}", "sk": "USER#USAGE"}
+        )
+        item = resp.get("Item") or {}
+        used  = int(item.get("tokens_used", 0) or 0)
+        limit = int(item.get("token_limit", TOKEN_LIMIT_DEFAULT) or TOKEN_LIMIT_DEFAULT)
+        return used >= limit
+    except Exception:
+        # On read failure, allow processing to continue
+        return False
+
+
 def accumulate_tokens(user_id, input_tokens, output_tokens):
     """
     Add consumed Bedrock tokens to the user's lifetime usage record.
@@ -1228,6 +1247,21 @@ def process_job_message(message):
             user_id,
             job_id,
             message,
+        )
+        return
+
+    # Guard against batch over-runs — multiple jobs may have been queued
+    # before the API submission check saw the limit was approaching.
+    if is_over_token_limit(user_id):
+        logger.warning(
+            "Token limit exceeded, skipping job. user_id=%s job_id=%s",
+            user_id, job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message="Token limit reached. This job was not scored.",
         )
         return
 

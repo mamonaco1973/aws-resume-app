@@ -91,6 +91,7 @@ export BUCKET_NAME=$(terraform output -raw frontend_bucket_name)
 export BUCKET_URL=$(terraform output -raw frontend_website_url)
 export COGNITO_DOMAIN=$(terraform output -raw cognito_hosted_ui_base)
 export COGNITO_CLIENT_ID=$(terraform output -raw cognito_user_pool_client_id)
+export CF_DISTRIBUTION_ID=$(terraform output -raw cloudfront_distribution_id)
 
 cd .. || exit 1
 
@@ -112,6 +113,17 @@ envsubst < js/config.js.tmpl > js/config.js || {
 aws s3 cp . s3://${BUCKET_NAME} --recursive
 
 cd ..
+
+# ------------------------------------------------------------------------------
+# CLOUDFRONT CACHE INVALIDATION
+# Purges all cached objects so the new SPA assets are served immediately.
+# ------------------------------------------------------------------------------
+echo "NOTE: Invalidating CloudFront cache..."
+aws cloudfront create-invalidation \
+  --distribution-id "${CF_DISTRIBUTION_ID}" \
+  --paths "/*" \
+  --query 'Invalidation.Id' \
+  --output text
 
 # ------------------------------------------------------------------------------
 # RUNTIME VALIDATION
