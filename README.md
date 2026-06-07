@@ -1,4 +1,4 @@
-# AWS Serverless Resume Scoring Application with Bedrock, Lambda, DynamoDB, SQS, and API Gateway
+# AWS Serverless Resume Scoring App
 
 This project delivers a fully automated **serverless resume scoring application**
 on AWS, built using **Amazon API Gateway**, **AWS Lambda**, **Amazon DynamoDB**,
