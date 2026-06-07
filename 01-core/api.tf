@@ -8,7 +8,9 @@ resource "aws_apigatewayv2_api" "api" {
 
   cors_configuration {
     allow_origins = [
-      "https://${aws_s3_bucket.frontend.bucket}.s3.${data.aws_region.current.region}.amazonaws.com"
+      "https://${aws_s3_bucket.frontend.bucket}.s3.${data.aws_region.current.region}.amazonaws.com",
+      # Custom CloudFront domain — required when served via myjobs subdomain
+      "https://myjobs.mikes-cloud-solutions.com"
     ]
 
     allow_methods = [
