@@ -347,6 +347,16 @@ def create_job(event):
     notes = body.get("notes", "").strip()
     folder_id = body.get("folder_id", "").strip() or None
 
+    # Check token budget before accepting the job — reject early so the
+    # user sees a clear error in the submit dialog rather than a silent fail.
+    usage_item = table.get_item(
+        Key={"pk": f"USER#{user_id}", "sk": "USER#USAGE"}
+    ).get("Item") or {}
+    tokens_used  = int(usage_item.get("tokens_used", 0) or 0)
+    token_limit  = int(usage_item.get("token_limit", 100_000) or 100_000)
+    if tokens_used >= token_limit:
+        return response(429, {"error": "Token limit reached. Please contact the administrator."})
+
     if not resume_id:
         return response(400, {"error": "resume_id is required"})
 

@@ -976,6 +976,25 @@ def process_url_job(user_id, job_id, job_url):
         return
 
     # -----------------------------------------------------------------------------
+    # Re-check token limit before the scoring call — extraction may have pushed
+    # a concurrent sibling job over the budget since the initial check.
+    # -----------------------------------------------------------------------------
+
+    if is_over_token_limit(user_id):
+        logger.warning(
+            "Token limit exceeded after extraction, skipping scoring. "
+            "user_id=%s job_id=%s",
+            user_id, job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message="Token limit reached. This job was not scored.",
+        )
+        return
+
+    # -----------------------------------------------------------------------------
     # Score the stored resume snapshot against the stored job description and
     # update DynamoDB with the extracted metadata plus score
     # -----------------------------------------------------------------------------
@@ -1177,6 +1196,25 @@ def process_raw_text_job(user_id, job_id):
             status_message=safe_status_message(
                 f"Failed to store job description: {exc}"
             ),
+        )
+        return
+
+    # -----------------------------------------------------------------------------
+    # Re-check token limit before the scoring call — extraction may have pushed
+    # a concurrent sibling job over the budget since the initial check.
+    # -----------------------------------------------------------------------------
+
+    if is_over_token_limit(user_id):
+        logger.warning(
+            "Token limit exceeded after extraction, skipping scoring. "
+            "user_id=%s job_id=%s",
+            user_id, job_id,
+        )
+        update_job_status(
+            user_id=user_id,
+            job_id=job_id,
+            status="Error",
+            status_message="Token limit reached. This job was not scored.",
         )
         return
 
