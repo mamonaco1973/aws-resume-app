@@ -174,17 +174,25 @@ document
   }
 
   const submitBtn = document.getElementById("submit-new-job");
+  const statusEl  = document.getElementById("new-job-submit-status");
   if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Submitting..."; }
+  if (statusEl)  { statusEl.textContent = ""; statusEl.classList.add("hidden"); }
   const newJobModal = document.getElementById("new-job-modal");
   newJobModal?.classList.add("modal-submitting");
   let submitError = null;
   try {
-    await submitJobScoringRequest();
+    await submitJobScoringRequest((current, total) => {
+      if (statusEl) {
+        statusEl.textContent = `Submitting ${current} of ${total}…`;
+        statusEl.classList.remove("hidden");
+      }
+    });
   } catch (err) {
     submitError = err.message || "Submission failed. Please try again.";
   } finally {
     newJobModal?.classList.remove("modal-submitting");
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = "Submit"; }
+    if (statusEl)  { statusEl.classList.add("hidden"); }
   }
   if (submitError) {
     const errEl = document.getElementById("new-job-submit-error");
@@ -640,13 +648,14 @@ async function refreshApp() {
 /*          createJob call. LinkedIn job IDs are expanded into individual     */
 /*          URL-based job submissions.                                        */
 /* -------------------------------------------------------------------------- */
-async function submitJobScoringRequest() {
+async function submitJobScoringRequest(onProgress = () => {}) {
   const resumeId  = document.getElementById("resume-select")?.value.trim() || "";
   const sourceType = document.getElementById("source-type")?.value || "url";
   const folderId   = document.getElementById("new-job-folder-select")?.value || null;
   const base       = { resume_id: resumeId, ...(folderId ? { folder_id: folderId } : {}) };
 
   if (sourceType === "url") {
+    onProgress(1, 1);
     await createJob({
       ...base,
       source_type: "url",
@@ -656,6 +665,7 @@ async function submitJobScoringRequest() {
   }
 
   if (sourceType === "raw_text") {
+    onProgress(1, 1);
     await createJob({
       ...base,
       source_type: "raw_text",
@@ -667,11 +677,12 @@ async function submitJobScoringRequest() {
   if (sourceType === "linkedin_job_id") {
     const ids = (document.getElementById("linkedin-job-ids")?.value.trim() || "")
       .split("\n").map((id) => id.trim()).filter(Boolean);
-    for (const id of ids) {
+    for (let i = 0; i < ids.length; i++) {
+      onProgress(i + 1, ids.length);
       await createJob({
         ...base,
         source_type: "url",
-        job_url: `https://www.linkedin.com/jobs/view/${id}`,
+        job_url: `https://www.linkedin.com/jobs/view/${ids[i]}`,
       });
     }
     return;
