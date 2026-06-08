@@ -40,3 +40,21 @@ variable "bedrock_model_id" {
   default     = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 }
 
+# ================================================================================
+# Google OAuth credentials
+# Optional — leave empty to disable Google login
+# ================================================================================
+
+variable "google_client_id" {
+  description = "Google OAuth2 client ID for Cognito federation"
+  type        = string
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "Google OAuth2 client secret for Cognito federation"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
