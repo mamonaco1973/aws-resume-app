@@ -347,6 +347,16 @@ def create_job(event):
     notes = body.get("notes", "").strip()
     folder_id = body.get("folder_id", "").strip() or None
 
+    # Reject if user has hit the lifetime job cap
+    job_count_resp = table.query(
+        KeyConditionExpression=(
+            Key("pk").eq(f"USER#{user_id}") & Key("sk").begins_with("JOB#")
+        ),
+        Select="COUNT",
+    )
+    if job_count_resp.get("Count", 0) >= 1000:
+        return response(429, {"error": "Job limit reached. Maximum 1,000 scored jobs per account."})
+
     # Check token budget before accepting the job — reject early so the
     # user sees a clear error in the submit dialog rather than a silent fail.
     usage_item = table.get_item(
