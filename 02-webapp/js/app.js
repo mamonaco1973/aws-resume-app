@@ -456,6 +456,8 @@ function validateNewJobForm() {
 
   if (jobIds.length === 0) {
     errors.linkedinJobIds = "Enter at least one LinkedIn job ID.";
+  } else if (jobIds.length > 10) {
+    errors.linkedinJobIds = "You can submit at most 10 LinkedIn job IDs at once.";
   } else if (!jobIds.every(isValidLinkedInJobId)) {
     errors.linkedinJobIds =
       "Each LinkedIn Job ID must be numeric and 7 to 12 digits long.";
