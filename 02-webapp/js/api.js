@@ -6,7 +6,7 @@
 /* ========================================================================== */
 
 import { CONFIG } from "./config.js";
-import { getIdToken, refreshTokens, clearTokens } from "./auth.js";
+import { getIdToken, isTokenExpired, refreshTokens, clearTokens } from "./auth.js";
 
 const API_BASE_URL = CONFIG.API_BASE_URL;
 
@@ -30,12 +30,23 @@ function buildHeaders(extraHeaders = {}) {
 /* -------------------------------------------------------------------------- */
 /* Function: apiRequest                                                        */
 /* Purpose: Send an authenticated fetch request to the backend API.           */
+/*          Proactively refreshes the token if expired before sending.        */
 /*          On a 401, attempts a silent Cognito token refresh and retries     */
 /*          once. If the refresh fails, clears tokens and redirects to the    */
 /*          login page so the user is never silently stuck with an expired    */
 /*          session.                                                           */
 /* -------------------------------------------------------------------------- */
 async function apiRequest(path, options = {}, isRetry = false) {
+  // Proactively refresh if the token is expired before sending the request.
+  if (isTokenExpired(getIdToken())) {
+    const refreshed = await refreshTokens();
+    if (!refreshed) {
+      clearTokens();
+      window.location.href = window.location.origin + "/index.html";
+      return;
+    }
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers: buildHeaders(options.headers || {})
