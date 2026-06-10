@@ -1142,3 +1142,107 @@ tr:hover .btn-ext-link {
   padding: 10px 14px;
   font-size: 15px;
 }
+
+/* ================================================================ */
+/* Mobile responsive                                                 */
+/* ================================================================ */
+
+@media (max-width: 640px) {
+
+  /* Tighter header padding */
+  .app-header {
+    padding: 10px 14px;
+  }
+
+  .app-header h1 {
+    font-size: 16px;
+  }
+
+  /* Tighter main content padding */
+  main {
+    padding: 10px;
+  }
+
+  /* Filter bar wraps tightly */
+  .filter-bar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  /* Search input full width on mobile */
+  .filter-group--search input[type="text"] {
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* Jobs table scrolls horizontally rather than overflowing */
+  #jobs-table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Auth modal — hide gradient panel, show form only */
+  .modal-content--auth {
+    flex-direction: column;
+    width: 95vw;
+  }
+
+  .auth-preview-panel {
+    display: none;
+  }
+
+  .auth-form-panel {
+    flex: 1;
+    padding: 32px 24px;
+  }
+
+  /* Resume manager — stack sidebar above editor */
+  .resume-manager {
+    grid-template-columns: 1fr;
+  }
+
+  .resume-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #e6e6e6;
+    padding-right: 0;
+    padding-bottom: 16px;
+  }
+
+  /* Job detail hero — stack score ring below info */
+  .jd-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  /* Detail rows — stack label above value */
+  .detail-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .detail-label {
+    color: #888;
+    font-size: 12px;
+  }
+
+  /* Job detail modal full width */
+  .modal-content--job-detail {
+    width: 98vw;
+    max-height: 95vh;
+    padding: 14px 14px;
+  }
+
+  /* Standard modal full width */
+  .modal-content {
+    width: 95vw;
+    padding: 20px 16px;
+  }
+
+  /* Help modal full width */
+  .modal-content--help {
+    width: 95vw;
+    max-height: 90vh;
+  }
+}
